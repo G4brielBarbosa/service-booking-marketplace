@@ -233,9 +233,9 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 - **Registro de Sono**: Representa entrada diária do diário do sono. Atributos: data, horário_dormiu, horário_acordou, duração_calculada, qualidade_percebida (0-10), energia_manhã (0-10), regularidade_calculada (diferença vs dia anterior), status (completo/parcial).
 
-- **Revisão Semanal**: Representa a consolidação de métricas do período semanal. Atributos: semana/ano, consistência por meta (lista), tendências de rubricas (lista), erros recorrentes consolidados (lista), tendência de sono/energia (conjunto de indicadores), decisões oferecidas (manter/ajustar/pausar), alvos da semana sugeridos (lista), status (completa/parcial).
+- **Revisão Semanal**: Representa a consolidação de métricas do período semanal. Atributos: semana/ano, consistência por meta (conjunto de metas com sua consistência), tendências de rubricas (conjunto de tendências por domínio/meta), erros recorrentes consolidados (conjunto de erros por domínio), tendência de sono/energia (conjunto de indicadores), decisões oferecidas (manter/ajustar/pausar), alvos da semana sugeridos (conjunto de alvos sugeridos), status (completa/parcial).
 
-- **Progresso do Dia**: Representa o estado consolidado de execução no dia atual. Atributos: data, metas com tarefas (lista com status: concluído/em progresso/pendente), rubricas preenchidas (contagem), consistência parcial do dia (calculada sobre tarefas concluídas conforme regras aplicáveis).
+- **Progresso do Dia**: Representa o estado consolidado de execução no dia atual. Atributos: data, metas com suas tarefas e seus estados (concluído/em progresso/pendente), rubricas preenchidas (contagem), consistência parcial do dia (calculada sobre tarefas concluídas conforme regras aplicáveis).
 
 ## Acceptance Criteria *(mandatory)*
 
