@@ -21,6 +21,7 @@ type Bot struct {
 	dailyRoutine *usecase.DailyRoutineUseCase
 	gates        *usecase.GateUseCase
 	english      *usecase.EnglishUseCase
+	java         *usecase.JavaUseCase
 	idempotent   port.IdempotencyStore
 	featureOn    bool
 	dailyOn      bool
@@ -41,6 +42,7 @@ func NewBot(
 	dailyRoutine *usecase.DailyRoutineUseCase,
 	gates *usecase.GateUseCase,
 	english *usecase.EnglishUseCase,
+	java *usecase.JavaUseCase,
 	idempotent port.IdempotencyStore,
 	featureOn bool,
 	dailyOn bool,
@@ -60,6 +62,7 @@ func NewBot(
 		dailyRoutine:    dailyRoutine,
 		gates:           gates,
 		english:         english,
+		java:            java,
 		idempotent:      idempotent,
 		featureOn:       featureOn,
 		dailyOn:         dailyOn,
@@ -191,6 +194,9 @@ func (b *Bot) routeMessage(ctx context.Context, userID, chatID int64, text strin
 
 	case b.gatesOn && strings.HasPrefix(lower, "erro "):
 		b.handleLogError(ctx, userID, chatID, strings.TrimPrefix(text, text[:5]))
+
+	case b.gatesOn && strings.HasPrefix(lower, "aprendizado "):
+		b.handleJavaLearning(ctx, userID, chatID, strings.TrimPrefix(text, text[:len("aprendizado ")]))
 
 	default:
 		if b.gatesOn && b.tryHandleEvidenceResponse(ctx, userID, chatID, text) {
@@ -758,6 +764,18 @@ func (b *Bot) tryHandleEvidenceResponse(ctx context.Context, userID, chatID int6
 		b.handleGenericEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
 		return true
 
+	case profileID == "java_practice" || profileID == "java_practice_min":
+		b.handleJavaPracticeEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
+	case profileID == "java_retrieval" || profileID == "java_retrieval_min":
+		b.handleJavaRetrievalEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
+	case profileID == "java_learning_log":
+		b.handleJavaLearningLogEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
 	default:
 		b.handleGenericEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
 		return true
@@ -872,6 +890,125 @@ func (b *Bot) sendGateResult(ctx context.Context, userID, chatID int64, taskID u
 			TaskID:    taskID.String(),
 			ProfileID: pending.ProfileID,
 		}
+	}
+}
+
+// --- Java evidence handlers (PLAN-005) ---
+
+func (b *Bot) handleJavaPracticeEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	if strings.TrimSpace(text) == "" {
+		_ = b.SendText(ctx, chatID, "Envie uma descrição curta do que fez (exercício, estudo, etc.).")
+		return
+	}
+
+	grView, err := b.java.SubmitPracticeEvidence(ctx, userID, taskID, localDate, text)
+	if err != nil {
+		b.log.Error("submit java practice evidence failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao processar evidência de prática Java.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+	b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+}
+
+func (b *Bot) handleJavaRetrievalEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	items := parseMultipleAnswers(text)
+	itemsAnswered := len(items)
+
+	profile := domain.LookupGateProfile(pending.ProfileID)
+	itemsTotal := itemsAnswered
+	if profile != nil && len(profile.Requirements) > 0 {
+		itemsTotal = profile.Requirements[0].MinCount
+	}
+
+	result, grView, err := b.java.SubmitRetrieval(ctx, userID, taskID, localDate, itemsAnswered, itemsTotal, items)
+	if err != nil {
+		b.log.Error("submit java retrieval failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao processar retrieval de Java.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+
+	icon := "✅"
+	if result.Status == "low" {
+		icon = "⚠️"
+	}
+	_ = b.SendText(ctx, chatID, fmt.Sprintf("%s Retrieval Java: %d/%d — %s", icon, itemsAnswered, itemsTotal, result.Status))
+
+	if grView != nil {
+		b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+	}
+}
+
+func (b *Bot) handleJavaLearningLogEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	if strings.TrimSpace(text) == "" {
+		_ = b.SendText(ctx, chatID, "Registre o principal erro ou aprendizado da sessão.")
+		return
+	}
+
+	logResult, grView, err := b.java.LogLearning(ctx, userID, taskID, localDate, text, nil, nil)
+	if err != nil {
+		b.log.Error("submit java learning log failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao registrar aprendizado.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+
+	msg := fmt.Sprintf("📝 Aprendizado registrado: *%s*\nOcorrências (14 dias): %d", logResult.Label, logResult.Count14d)
+	if logResult.IsRecurring {
+		msg += "\n⚠️ *Recorrente!* Considere focar nisso."
+	}
+	_ = b.SendText(ctx, chatID, msg)
+
+	if grView != nil {
+		b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+	}
+}
+
+func (b *Bot) handleJavaLearning(ctx context.Context, userID, chatID int64, rawText string) {
+	text := strings.TrimSpace(rawText)
+	if text == "" {
+		_ = b.SendText(ctx, chatID, "Uso: `aprendizado [descrição do erro ou aprendizado]`\nExemplo: `aprendizado confusão entre ArrayList e LinkedList`")
+		return
+	}
+
+	now := time.Now()
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	localDate := now.In(loc).Format("2006-01-02")
+
+	task, err := b.dailyRoutine.FindTaskByTitle(ctx, userID, localDate, "Registro de aprendizado")
+	if err != nil {
+		task, err = b.dailyRoutine.FindTaskByTitle(ctx, userID, localDate, "Micro-prática de Java")
+		if err != nil {
+			_ = b.SendText(ctx, chatID, "Nenhuma tarefa de aprendizado Java encontrada no plano de hoje. Use /checkin para começar.")
+			return
+		}
+	}
+
+	taskID := task.TaskID
+
+	logResult, grView, err := b.java.LogLearning(ctx, userID, taskID, localDate, text, nil, nil)
+	if err != nil {
+		if domErr, ok := err.(*domain.DomainError); ok {
+			_ = b.SendText(ctx, chatID, domErr.Message)
+		} else {
+			b.log.Error("java log learning failed", "error", err)
+			_ = b.SendText(ctx, chatID, "Erro ao registrar. Tente novamente.")
+		}
+		return
+	}
+
+	msg := fmt.Sprintf("📝 Aprendizado registrado: *%s*\nOcorrências (14 dias): %d", logResult.Label, logResult.Count14d)
+	if logResult.IsRecurring {
+		msg += "\n⚠️ *Recorrente!* Considere focar nisso esta semana."
+	}
+	_ = b.SendText(ctx, chatID, msg)
+
+	if grView != nil && grView.GateStatus == domain.GateSatisfied {
+		_ = b.SendText(ctx, chatID, "✅ Gate de aprendizado satisfeito!")
 	}
 }
 

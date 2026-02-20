@@ -82,6 +82,15 @@ func main() {
 		rubricRepo, gateUC, eventRepo, log,
 	)
 
+	javaPracticeRepo := postgres.NewJavaPracticeRepo(store)
+	javaRetrievalRepo := postgres.NewJavaRetrievalRepo(store)
+	javaLearningLogRepo := postgres.NewJavaLearningLogRepo(store)
+
+	javaUC := usecase.NewJavaUseCase(
+		userRepo, dailyStateRepo, javaPracticeRepo, javaRetrievalRepo, javaLearningLogRepo,
+		gateUC, eventRepo, log,
+	)
+
 	// HTTP health endpoint for admin/monitoring
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +109,7 @@ func main() {
 	}()
 
 	// Start Telegram bot (long polling)
-	bot, err := telegram.NewBot(cfg.TelegramBotToken, onboardingUC, dailyRoutineUC, gateUC, englishUC, idempRepo, cfg.FeatureOnboardingV1, cfg.FeatureDailyRoutineV1, cfg.FeatureQualityGatesV1, log)
+	bot, err := telegram.NewBot(cfg.TelegramBotToken, onboardingUC, dailyRoutineUC, gateUC, englishUC, javaUC, idempRepo, cfg.FeatureOnboardingV1, cfg.FeatureDailyRoutineV1, cfg.FeatureQualityGatesV1, log)
 	if err != nil {
 		log.Error("creating telegram bot", "error", err)
 		os.Exit(1)

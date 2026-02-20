@@ -779,3 +779,139 @@ func (s *Store) CountEnglishErrorsByUserLabelSince(ctx context.Context, userID u
 	err := row.Scan(&count)
 	return count, err
 }
+
+// --- JavaPracticeRepository ---
+
+func (s *Store) SaveJavaPractice(ctx context.Context, sess *domain.JavaPracticeSession) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO java_practice_sessions (session_id, user_id, task_id, local_date, duration_est_min, objective_constraint, evidence_short, status, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (session_id) DO UPDATE SET
+		     evidence_short = EXCLUDED.evidence_short,
+		     status = EXCLUDED.status`,
+		sess.SessionID, sess.UserID, sess.TaskID, sess.LocalDate,
+		sess.DurationEstMin, sess.ObjectiveConstraint, sess.EvidenceShort, sess.Status, sess.CreatedAt)
+	return err
+}
+
+func (s *Store) FindJavaPracticeByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.JavaPracticeSession, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT session_id, user_id, task_id, local_date, duration_est_min, objective_constraint, evidence_short, status, created_at
+		 FROM java_practice_sessions WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var sess domain.JavaPracticeSession
+	err := row.Scan(&sess.SessionID, &sess.UserID, &sess.TaskID, &sess.LocalDate,
+		&sess.DurationEstMin, &sess.ObjectiveConstraint, &sess.EvidenceShort, &sess.Status, &sess.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &sess, nil
+}
+
+// --- JavaRetrievalRepository ---
+
+func (s *Store) SaveJavaRetrieval(ctx context.Context, r *domain.JavaRetrieval) error {
+	targetsJSON, _ := json.Marshal(r.Targets)
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO java_retrievals (retrieval_id, user_id, task_id, local_date, items_answered, items_total, status, targets, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (retrieval_id) DO UPDATE SET
+		     items_answered = EXCLUDED.items_answered,
+		     status = EXCLUDED.status,
+		     targets = EXCLUDED.targets`,
+		r.RetrievalID, r.UserID, r.TaskID, r.LocalDate,
+		r.ItemsAnswered, r.ItemsTotal, r.Status, targetsJSON, r.CreatedAt)
+	return err
+}
+
+func (s *Store) FindJavaRetrievalByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.JavaRetrieval, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT retrieval_id, user_id, task_id, local_date, items_answered, items_total, status, targets, created_at
+		 FROM java_retrievals WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var r domain.JavaRetrieval
+	var targetsJSON []byte
+	err := row.Scan(&r.RetrievalID, &r.UserID, &r.TaskID, &r.LocalDate,
+		&r.ItemsAnswered, &r.ItemsTotal, &r.Status, &targetsJSON, &r.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(targetsJSON, &r.Targets)
+	return &r, nil
+}
+
+func (s *Store) FindJavaRetrievalsByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaRetrieval, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT retrieval_id, user_id, task_id, local_date, items_answered, items_total, status, targets, created_at
+		 FROM java_retrievals WHERE user_id = $1 AND local_date >= $2 AND local_date <= $3
+		 ORDER BY created_at`, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.JavaRetrieval
+	for rows.Next() {
+		var r domain.JavaRetrieval
+		var targetsJSON []byte
+		if err := rows.Scan(&r.RetrievalID, &r.UserID, &r.TaskID, &r.LocalDate,
+			&r.ItemsAnswered, &r.ItemsTotal, &r.Status, &targetsJSON, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal(targetsJSON, &r.Targets)
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// --- JavaLearningLogRepository ---
+
+func (s *Store) SaveJavaLearningLog(ctx context.Context, entry *domain.JavaLearningLogEntry) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO java_learning_log (entry_id, user_id, task_id, local_date, error_or_learning, fix_or_note, category, recurring_count_14d, is_recurring, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 ON CONFLICT (entry_id) DO UPDATE SET
+		     recurring_count_14d = EXCLUDED.recurring_count_14d,
+		     is_recurring = EXCLUDED.is_recurring`,
+		entry.EntryID, entry.UserID, entry.TaskID, entry.LocalDate, entry.ErrorOrLearning,
+		entry.FixOrNote, entry.Category, entry.RecurringCount14d, entry.IsRecurring, entry.CreatedAt)
+	return err
+}
+
+func (s *Store) FindJavaLearningLogByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaLearningLogEntry, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT entry_id, user_id, task_id, local_date, error_or_learning, fix_or_note, category, recurring_count_14d, is_recurring, created_at
+		 FROM java_learning_log WHERE user_id = $1 AND local_date >= $2 AND local_date <= $3
+		 ORDER BY created_at`, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.JavaLearningLogEntry
+	for rows.Next() {
+		var e domain.JavaLearningLogEntry
+		if err := rows.Scan(&e.EntryID, &e.UserID, &e.TaskID, &e.LocalDate, &e.ErrorOrLearning,
+			&e.FixOrNote, &e.Category, &e.RecurringCount14d, &e.IsRecurring, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, e)
+	}
+	return results, nil
+}
+
+func (s *Store) CountJavaLearningLogByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM java_learning_log WHERE user_id = $1 AND error_or_learning = $2 AND local_date >= $3`,
+		userID, label, since)
+
+	var count int
+	err := row.Scan(&count)
+	return count, err
+}
