@@ -99,3 +99,22 @@ type EnglishErrorLogRepository interface {
 	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishErrorLogEntry, error)
 	CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error)
 }
+
+// --- Java daily repositories (PLAN-005) ---
+
+type JavaPracticeRepository interface {
+	Save(ctx context.Context, session *domain.JavaPracticeSession) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.JavaPracticeSession, error)
+}
+
+type JavaRetrievalRepository interface {
+	Save(ctx context.Context, retrieval *domain.JavaRetrieval) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.JavaRetrieval, error)
+	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaRetrieval, error)
+}
+
+type JavaLearningLogRepository interface {
+	Save(ctx context.Context, entry *domain.JavaLearningLogEntry) error
+	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaLearningLogEntry, error)
+	CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error)
+}

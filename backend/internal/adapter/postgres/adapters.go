@@ -216,3 +216,47 @@ func (r *EnglishErrorLogRepo) FindByUserAndDateRange(ctx context.Context, userID
 func (r *EnglishErrorLogRepo) CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error) {
 	return r.s.CountEnglishErrorsByUserLabelSince(ctx, userID, label, since)
 }
+
+// --- Java daily adapters (PLAN-005) ---
+
+// JavaPracticeRepo adapts Store to port.JavaPracticeRepository.
+type JavaPracticeRepo struct{ s *Store }
+
+func NewJavaPracticeRepo(s *Store) *JavaPracticeRepo { return &JavaPracticeRepo{s: s} }
+
+func (r *JavaPracticeRepo) Save(ctx context.Context, sess *domain.JavaPracticeSession) error {
+	return r.s.SaveJavaPractice(ctx, sess)
+}
+func (r *JavaPracticeRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.JavaPracticeSession, error) {
+	return r.s.FindJavaPracticeByTaskID(ctx, taskID)
+}
+
+// JavaRetrievalRepo adapts Store to port.JavaRetrievalRepository.
+type JavaRetrievalRepo struct{ s *Store }
+
+func NewJavaRetrievalRepo(s *Store) *JavaRetrievalRepo { return &JavaRetrievalRepo{s: s} }
+
+func (r *JavaRetrievalRepo) Save(ctx context.Context, ret *domain.JavaRetrieval) error {
+	return r.s.SaveJavaRetrieval(ctx, ret)
+}
+func (r *JavaRetrievalRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.JavaRetrieval, error) {
+	return r.s.FindJavaRetrievalByTaskID(ctx, taskID)
+}
+func (r *JavaRetrievalRepo) FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaRetrieval, error) {
+	return r.s.FindJavaRetrievalsByUserAndDateRange(ctx, userID, startDate, endDate)
+}
+
+// JavaLearningLogRepo adapts Store to port.JavaLearningLogRepository.
+type JavaLearningLogRepo struct{ s *Store }
+
+func NewJavaLearningLogRepo(s *Store) *JavaLearningLogRepo { return &JavaLearningLogRepo{s: s} }
+
+func (r *JavaLearningLogRepo) Save(ctx context.Context, entry *domain.JavaLearningLogEntry) error {
+	return r.s.SaveJavaLearningLog(ctx, entry)
+}
+func (r *JavaLearningLogRepo) FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaLearningLogEntry, error) {
+	return r.s.FindJavaLearningLogByUserAndDateRange(ctx, userID, startDate, endDate)
+}
+func (r *JavaLearningLogRepo) CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error) {
+	return r.s.CountJavaLearningLogByUserLabelSince(ctx, userID, label, since)
+}

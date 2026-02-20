@@ -81,6 +81,39 @@ var GateProfileCatalog = map[string]QualityGateProfile{
 		EquivalencePolicy: EquivTextEquivalent,
 	},
 
+	"java_practice_min": {
+		ProfileID: "java_practice_min",
+		Domain:    GoalJava,
+		TaskClass: TaskClassLearning,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Descreva em 1-2 frases o que fez (artigo/micro-exercício).", MinCount: 1},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
+
+	"java_retrieval_min": {
+		ProfileID: "java_retrieval_min",
+		Domain:    GoalJava,
+		TaskClass: TaskClassLearning,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Explique sem consultar 1 conceito (recall mínimo).", MinCount: 1},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
+
+	"java_learning_log": {
+		ProfileID: "java_learning_log",
+		Domain:    GoalJava,
+		TaskClass: TaskClassLearning,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Registre o principal erro ou aprendizado da sessão.", MinCount: 1},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
+
 	"sleep_diary": {
 		ProfileID: "sleep_diary",
 		Domain:    GoalSleep,

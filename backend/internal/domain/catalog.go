@@ -26,6 +26,12 @@ var (
 	retrievalGateRef       = "english_retrieval"
 	comprehensionMinRef    = "english_comprehension_min"
 	retrievalMinRef        = "english_retrieval_min"
+
+	javaPracticeRef     = "java_practice"
+	javaPracticeMinRef  = "java_practice_min"
+	javaRetrievalRef    = "java_retrieval"
+	javaRetrievalMinRef = "java_retrieval_min"
+	javaLearningLogRef  = "java_learning_log"
 )
 
 var catalog = map[GoalID]map[PlanType][]TaskTemplate{
@@ -46,16 +52,18 @@ var catalog = map[GoalID]map[PlanType][]TaskTemplate{
 	},
 	GoalJava: {
 		PlanA: {
-			{Title: "Estudo de Java", GoalDomain: GoalJava, EstimatedMin: 30, Instructions: "Estude um tópico do roteiro por 30 min", DoneCriteria: "30 min de estudo registrados"},
-			{Title: "Prática de código", GoalDomain: GoalJava, EstimatedMin: 20, Instructions: "Resolva 1 exercício prático", DoneCriteria: "Exercício resolvido e testado"},
-			{Title: "Revisão de conceitos", GoalDomain: GoalJava, EstimatedMin: 5, Instructions: "Revise flashcards de Java", DoneCriteria: "Revisão concluída"},
+			{Title: "Prática de Java", GoalDomain: GoalJava, EstimatedMin: 30, Instructions: "Resolva 1 exercício prático e escreva uma explicação curta do que fez e por quê.", DoneCriteria: "Exercício resolvido + explicação enviada", GateProfile: &javaPracticeRef},
+			{Title: "Retrieval de Java", GoalDomain: GoalJava, EstimatedMin: 10, Instructions: "Explique sem consultar os conceitos usados na prática. Responda 3-5 perguntas de recall.", DoneCriteria: "3-5 itens de recall registrados", GateProfile: &javaRetrievalRef},
+			{Title: "Registro de aprendizado", GoalDomain: GoalJava, EstimatedMin: 5, Instructions: "Registre o principal erro ou aprendizado da sessão.", DoneCriteria: "1 erro/aprendizado registrado", GateProfile: &javaLearningLogRef},
 		},
 		PlanB: {
-			{Title: "Estudo de Java", GoalDomain: GoalJava, EstimatedMin: 20, Instructions: "Estude um tópico por 20 min", DoneCriteria: "20 min de estudo registrados"},
-			{Title: "Revisão de conceitos", GoalDomain: GoalJava, EstimatedMin: 5, Instructions: "Revise flashcards de Java", DoneCriteria: "Revisão concluída"},
+			{Title: "Prática de Java", GoalDomain: GoalJava, EstimatedMin: 20, Instructions: "Resolva 1 exercício curto ou estude um tópico. Descreva brevemente o que fez.", DoneCriteria: "Exercício/estudo + descrição enviada", GateProfile: &javaPracticeRef},
+			{Title: "Retrieval de Java", GoalDomain: GoalJava, EstimatedMin: 5, Instructions: "Explique sem consultar 1-2 conceitos. Responda 2 perguntas de recall.", DoneCriteria: "1-2 itens de recall registrados", GateProfile: &javaRetrievalMinRef},
+			{Title: "Registro de aprendizado", GoalDomain: GoalJava, EstimatedMin: 5, Instructions: "Registre 1 erro ou aprendizado.", DoneCriteria: "1 erro/aprendizado registrado", GateProfile: &javaLearningLogRef},
 		},
 		PlanC: {
-			{Title: "Leitura rápida de Java", GoalDomain: GoalJava, EstimatedMin: 10, Instructions: "Leia 1 artigo curto sobre Java", DoneCriteria: "Artigo lido"},
+			{Title: "Micro-prática de Java", GoalDomain: GoalJava, EstimatedMin: 10, Instructions: "Leia 1 artigo curto sobre Java ou resolva 1 micro-exercício. Descreva em 1-2 frases o que fez.", DoneCriteria: "Descrição curta do que fez", GateProfile: &javaPracticeMinRef},
+			{Title: "Retrieval mínimo", GoalDomain: GoalJava, EstimatedMin: 5, Instructions: "Explique sem consultar 1 conceito estudado.", DoneCriteria: "1 item de recall registrado", GateProfile: &javaRetrievalMinRef},
 		},
 	},
 	GoalSleep: {
