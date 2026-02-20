@@ -71,7 +71,7 @@ O usuário inicia o assistente pela primeira vez e quer completar um onboarding 
 7. **Scenario**: Recusa de dado sensível não impede o onboarding mínimo
    - **Given** o usuário recusa compartilhar um tipo de dado (ex.: áudio) por privacidade/ambiente (PRD RNF4)
    - **When** o sistema solicita esse item de baseline
-   - **Then** o sistema conclui o onboarding mínimo sem punição, registra a lacuna como pendência/bloqueio e explica o impacto de forma curta (PRD RNF1; RNF3) **[NEEDS CLARIFICATION]**: alternativa aceitável para baseline quando áudio não é possível
+   - **Then** o sistema conclui o onboarding mínimo sem punição, registra a lacuna como pendência/bloqueio e explica o impacto de forma curta (PRD RNF1; RNF3). Default de alternativa para baseline de inglês sem áudio: coletar **baseline suficiente** por (a) autoavaliação curta (0–10) de speaking e compreensão, (b) checagem de compreensão por 3 perguntas sobre um input curto, e (c) um “output substituto” em texto (3–5 frases) registrado como **não-equivalente a speaking** (speaking baseline fica pendente; ver política de equivalência em `SPEC-003` e privacidade em `SPEC-015`).
 
 8. **Scenario**: Usuário não consegue definir metas com clareza
    - **Given** o usuário não sabe descrever metas com precisão (PRD §5.1)
@@ -124,32 +124,39 @@ O usuário pode interromper o onboarding e voltar depois. Ele também pode perce
 2. **Scenario**: Revisão de resposta altera o resumo
    - **Given** onboarding mínimo concluído
    - **When** o usuário revisa uma informação (ex.: restrição de horário)
-   - **Then** o resumo revisável reflete a alteração e o sistema explica, de forma concisa, impacto esperado (PRD §5.2; RNF1) **[NEEDS CLARIFICATION]**: quais campos podem ser revisados sem afetar métricas históricas.
+   - **Then** o resumo revisável reflete a alteração e o sistema explica, de forma concisa, impacto esperado (PRD §5.2; RNF1). Política default de edição sem “reescrever o passado”: campos de **preferência/configuração** (metas ativas, restrições, janela de sono/quiet hours, opt-outs, MVD) podem ser revisados e passam a valer **daqui pra frente**; registros históricos (check-ins, evidências, resultados de gate, métricas do passado) não são alterados — no máximo recebem uma nota “configuração mudou em [data]”.
 
 ### Edge Cases *(mandatory)*
 
-- What happens when o usuário **não sabe definir metas anuais** com clareza (PRD §5.1)? O sistema deve permitir começar com metas provisórias guiadas pela lista do PRD. **[NEEDS CLARIFICATION]**: existe uma forma preferida de enquadrar metas (ex.: “resultado trimestral”) além do texto do PRD?
-- How does system handle respostas conflitantes (ex.: “pouco tempo” e “muitas metas intensivas”) (PRD §6.2; RNF2)? O sistema deve priorizar proteção contra overload e pedir uma única escolha. **[NEEDS CLARIFICATION]**: bloquear ou apenas recomendar quando o limite é violado.
-- What happens when o usuário **recusa compartilhar certos dados** (ex.: áudio de speaking) (PRD RNF4)? **[NEEDS CLARIFICATION]**: alternativas aceitáveis para baseline de inglês sem áudio e se isso conta como “baseline suficiente”.
-- What happens when o usuário quer pular tudo (“só me manda o plano”) (PRD RNF1)? **[NEEDS CLARIFICATION]**: qual é o mínimo absoluto de onboarding para destravar rotina diária sem comprometer qualidade.
+- What happens when o usuário **não sabe definir metas anuais** com clareza (PRD §5.1)? O sistema permite começar com metas provisórias guiadas pela lista do PRD e enquadra como “metas ativas do ciclo atual” (não precisa ser meta perfeita). Opcionalmente, o sistema coleta 1 frase de “por que importa” por meta, mas não bloqueia.
+- How does system handle respostas conflitantes (ex.: “pouco tempo” e “muitas metas intensivas”) (PRD §6.2; RNF2)? Default protetivo: priorizar anti-overload. O sistema **não bloqueia** o onboarding, mas **não permite** mais de 2 metas intensivas ativas no ciclo; pede 1 escolha (manter/adiar/pausar). Se o usuário não escolher, aplica default: mantém Inglês + Java se ambas foram selecionadas; caso contrário mantém as 2 primeiras selecionadas e marca as demais como “pausadas”.
+- What happens when o usuário **recusa compartilhar certos dados** (ex.: áudio de speaking) (PRD RNF4)? Default: recusa não impede onboarding mínimo. Para inglês, isso conta como **baseline suficiente** para começar a rotina diária, mas deixa “speaking baseline” como pendente (ver `SPEC-003` e `SPEC-015`).
+- What happens when o usuário quer pular tudo (“só me manda o plano”) (PRD RNF1)? Default de mínimo absoluto para destravar rotina diária (≤ 3 min): (1) escolher metas ativas do ciclo (respeitando limite de 2 intensivas), (2) definir MVD do dia ruim (ou aceitar um MVD default), (3) confirmar janela de sono/quiet hours (ou aceitar default), (4) informar 1 restrição principal de agenda (ou “não sei”). O restante vira pendência do diagnóstico leve.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: System MUST coletar as metas anuais suportadas e permitir selecionar quais metas estarão **ativas no ciclo atual** (PRD §5.1).
-- **FR-002**: System MUST aplicar e comunicar o limite de **no máximo 2 metas intensivas por ciclo**, orientando o usuário a manter/adiar/pausar metas para evitar overload (PRD §6.2; §13). **[NEEDS CLARIFICATION]**: política de classificação de “meta intensiva”.
+- **FR-002**: System MUST aplicar e comunicar o limite de **no máximo 2 metas intensivas por ciclo**, orientando o usuário a manter/adiar/pausar metas para evitar overload (PRD §6.2; §13). Política default de classificação:
+  - **Meta intensiva**: exige prática deliberada frequente com quality gates (ex.: Inglês, Java).
+  - **Fundação**: sono/saúde e suporte emocional (autoestima) — não contam no limite intensivo.
+  - **Aposta semanal**: SaaS — não conta no limite intensivo diário; opera como bloco semanal (ver `SPEC-014`).
 - **FR-003**: System MUST coletar restrições operacionais mínimas (tempo típico, horários, limitações relevantes) para calibrar planos (PRD §5.1).
-- **FR-004**: System MUST capturar uma baseline mínima por domínio conforme PRD §5.1 (sono/inglês/java/autoestima/contexto), sem inventar instrumentos clínicos. **[NEEDS CLARIFICATION]**: quais campos são obrigatórios no onboarding mínimo vs no diagnóstico progressivo.
+- **FR-004**: System MUST capturar uma baseline mínima por domínio conforme PRD §5.1 (sono/inglês/java/autoestima/contexto), sem inventar instrumentos clínicos. Defaults de obrigatórios:
+  - **Onboarding mínimo (para destravar rotina diária)**: (a) metas ativas do ciclo, (b) MVD, (c) 1 restrição principal de agenda, (d) baseline mínima de sono (última noite: dormiu/acordou + qualidade 0–10 + energia manhã 0–10), (e) baseline mínima **apenas** das metas intensivas ativas (autoavaliação 0–10 + 1 checagem curta), e (f) privacidade/opt-out básico (ver `SPEC-015`).
+  - **Diagnóstico leve (1–2 semanas)**: completar lacunas restantes por domínio em passos únicos, no máximo 1 pendência por dia quando o usuário aceitar.
 - **FR-005**: System MUST suportar baseline de sono em formato de diário mínimo (PRD §5.1; §8.3).
-- **FR-006**: System MUST suportar baseline de inglês por amostras curtas de fala e compreensão (PRD §5.1; §8.1). **[NEEDS CLARIFICATION]**: evidência alternativa quando áudio não é possível.
+- **FR-006**: System MUST suportar baseline de inglês por amostras curtas de fala e compreensão (PRD §5.1; §8.1). Default quando áudio não é possível: baseline suficiente por checagem de compreensão (3 perguntas) + autoavaliação 0–10 + output em texto (3–5 frases) registrado como “substituto” (speaking baseline fica pendente).
 - **FR-007**: System MUST suportar baseline de Java por exercícios curtos de conceitos + código (PRD §5.1; §8.2).
 - **FR-008**: System MUST suportar baseline de autoestima por registros de padrões de autocrítica e gatilhos (PRD §5.1; §8.5).
 - **FR-009**: System MUST definir um **Mínimo Viável Diário (MVD)** executável em dia ruim e explicar quando usar (PRD §5.1; RNF2).
 - **FR-010**: System MUST produzir um **resumo revisável** do onboarding (metas ativas, restrições, baseline por domínio e MVD) (PRD §5.1).
 - **FR-011**: System MUST permitir concluir onboarding mínimo em uma sessão curta e completar lacunas em etapas ao longo de 1–2 semanas (PRD §5.1).
 - **FR-012**: System MUST permitir retomar onboarding interrompido sem perda de dados e permitir revisão de respostas, refletindo no resumo (PRD RNF1; §5.2).
-- **FR-013**: System MUST operar com privacidade por padrão durante onboarding: coletar o mínimo, explicar o que é guardado e por quê (PRD RNF4). **[NEEDS CLARIFICATION]**: política de retenção/remoção dos dados de baseline.
+- **FR-013**: System MUST operar com privacidade por padrão durante onboarding: coletar o mínimo, explicar o que é guardado e por quê (PRD RNF4; ver `SPEC-015`). Defaults de retenção:
+  - **Respostas de onboarding/baseline**: reter enquanto o usuário usar o sistema (para calibragem), com opção de apagar a qualquer momento (apagar baseline implica recalibrar).
+  - **Conteúdo sensível bruto** (se houver): seguir defaults de `SPEC-015` (retenção curta/opt-out).
 
 ### Non-Functional Requirements
 
@@ -164,7 +171,7 @@ O usuário pode interromper o onboarding e voltar depois. Ele também pode perce
 - **ActiveGoalCycle**: metas ativas; metas pausadas/adiadas; indicação de metas intensivas; justificativa curta (PRD §6.2).
 - **BaselineSnapshot**: baseline por domínio (sono/inglês/java/autoestima/contexto) + completude por domínio (PRD §5.1).
 - **MinimumViableDaily (MVD)**: lista curta de ações; condições de uso (PRD §5.1; RNF2).
-- **PrivacyDisclosure**: declaração do que é guardado e por quê; preferências/recusas por tipo de dado (PRD RNF4). **[NEEDS CLARIFICATION]**: formato/política de opt-out por dado.
+- **PrivacyDisclosure**: declaração do que é guardado e por quê; preferências/recusas por tipo de dado (PRD RNF4; ver `SPEC-015`). Default: opt-out por categoria (ex.: “não guardar conteúdo sensível”), com operação em modo mínimo quando opt-out estiver ativo.
 
 ## Acceptance Criteria *(mandatory)*
 
@@ -185,8 +192,8 @@ O usuário pode interromper o onboarding e voltar depois. Ele também pode perce
 - **Usuário some**: manter sessão e permitir retomar; ao retornar, mostrar estado e pedir apenas o próximo passo (PRD RNF1; §5.1).
 - **Dados insuficientes**: concluir onboarding mínimo quando possível e registrar lacunas para completar no diagnóstico progressivo; sem culpa (PRD RNF3).
 - **Respostas ambíguas**: fazer no máximo 1 pergunta de confirmação por vez e seguir (PRD RNF1).
-- **Conflito/overload**: priorizar proteção e orientar escolha/adiamento com linguagem não punitiva (PRD §6.2; §13; RNF3). **[NEEDS CLARIFICATION]**: se o sistema pode bloquear ativação até ajuste.
-- **Recusa por privacidade**: explicar impacto, oferecer alternativa (quando definida) ou registrar pendência/bloqueio sem punição (PRD RNF4; RNF3). **[NEEDS CLARIFICATION]**: alternativas para baseline de inglês e política de retenção.
+- **Conflito/overload**: priorizar proteção e orientar escolha/adiamento com linguagem não punitiva (PRD §6.2; §13; RNF3). Não bloquear o onboarding; aplicar default protetivo (no máximo 2 metas intensivas ativas) e registrar as demais como pausadas/adiadas.
+- **Recusa por privacidade**: explicar impacto, oferecer alternativa quando definida (baseline suficiente sem áudio conforme FR-006) ou registrar pendência/bloqueio sem punição (PRD RNF4; RNF3). Retenção/remoção seguem `SPEC-015` e FR-013.
 
 ## Success Criteria *(mandatory)*
 
@@ -194,6 +201,8 @@ O usuário pode interromper o onboarding e voltar depois. Ele também pode perce
 
 - **SC-001**: Usuário completa onboarding mínimo em \u2264 10 minutos totais (somando interações) (PRD RNF1; §5.1).
 - **SC-002**: Usuário consegue revisar o resumo do onboarding a qualquer momento (PRD §5.1).
-- **SC-003**: Em até 14 dias, a baseline progressiva atinge alta completude sem virar burocracia. **[NEEDS CLARIFICATION]**: definição objetiva de “completude” por domínio.
+- **SC-003**: Em até 14 dias, a baseline progressiva atinge alta completude sem virar burocracia. Definição objetiva de “alta completude”:
+  - Para cada domínio **relevante ao ciclo** (metas intensivas ativas + fundação), todos os itens mínimos do PRD para aquele domínio foram coletados ao menos uma vez (mesmo que parcialmente quando permitido por política de privacidade).
+  - Itens pendentes por recusa/privacidade podem permanecer como “pendente” sem impedir completude do ciclo, desde que exista baseline suficiente para operar (ex.: speaking baseline pendente, mas compreensão + autoavaliação coletadas).
 - **SC-004**: A maioria dos ciclos iniciados respeita o limite de 2 metas intensivas (PRD §6.2).
 

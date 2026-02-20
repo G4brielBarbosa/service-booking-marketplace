@@ -185,7 +185,7 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 - **Erros recorrentes com nomenclatura diferente**: Como sistema identifica que "forgot + gerund" e "esqueceu de usar gerund" são o mesmo erro? Sistema deve usar categorização/agrupamento semântico ou permitir marcação manual de equivalência.
 
-- **Sono com múltiplos registros no mesmo dia**: Como sistema lida se usuário preenche diário do sono mais de uma vez no mesmo dia (correção)? Sistema deve manter último registro válido e deixar claro que houve correção/atualização. **[NEEDS CLARIFICATION: precisamos manter histórico de correções?]**
+- **Sono com múltiplos registros no mesmo dia**: Se o usuário corrigir o diário no mesmo dia, o sistema mantém o **último registro válido** como fonte de verdade e indica “corrigido hoje”. Default MVP: **não manter histórico completo de correções** (apenas `updated_at`/marcação de correção). Se necessário no futuro, pode evoluir para histórico de versões.
 
 - **Consulta de progresso durante execução de tarefa**: Como sistema lida quando usuário solicita progresso do dia enquanto está executando uma tarefa (rubrica pendente)? Sistema deve mostrar estado atual (em progresso) e não contar como concluído até quality gate.
 
@@ -219,7 +219,9 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 - **NFR-002**: System MUST aplicar privacidade por padrão: coletar apenas métricas necessárias para funcionalidades descritas, com clareza do que é guardado e por quê (PRD RNF4).
 
-- **NFR-003**: System MUST garantir que consultas de progresso e revisões semanais sejam rápidas o suficiente para manter a interação curta e previsível (PRD RNF1). **[NEEDS CLARIFICATION: existe um target de tempo?]**
+- **NFR-003**: System MUST garantir que consultas de progresso e revisões semanais sejam rápidas o suficiente para manter a interação curta e previsível (PRD RNF1). Targets default:
+  - Consulta “progresso do dia”: resposta em ≤ 1 mensagem e tempo médio ≤ 5s (p95 ≤ 15s).
+  - Geração de revisão semanal: resposta em ≤ 2 mensagens e tempo médio ≤ 10s (p95 ≤ 30s).
 
 - **NFR-004**: System MUST lidar com dados faltantes/parciais sem penalizar usuário, oferecendo recuperação de baseline mínima quando necessário.
 
@@ -239,7 +241,7 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 ## Acceptance Criteria *(mandatory)*
 
-- **AC-001**: Usuário consegue consultar progresso do dia atual e ver lista consolidada de steps executados e desenvolvimento por meta de forma rápida o suficiente para manter a interação curta. **[NEEDS CLARIFICATION: existe target de tempo?]**
+- **AC-001**: Usuário consegue consultar progresso do dia atual e ver lista consolidada de steps executados e desenvolvimento por meta de forma rápida o suficiente para manter a interação curta: ≤ 1 mensagem e tempo médio ≤ 5s (p95 ≤ 15s).
 
 - **AC-002**: Sistema registra automaticamente consistência quando tarefa é concluída com quality gate, e usuário consegue ver consistência semanal por meta na revisão.
 
@@ -271,13 +273,13 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 ## Error Handling *(mandatory)*
 
-- **Dados faltantes em múltiplos dias**: Sistema calcula consistência apenas sobre dias com dados disponíveis, marca lacunas sem penalizar e oferece recuperação de baseline mínima (ex.: "quer preencher dados faltantes?") quando o gap for significativo. **[NEEDS CLARIFICATION: qual critério de “gap significativo”?]**
+- **Dados faltantes em múltiplos dias**: Sistema calcula consistência apenas sobre dias com dados disponíveis, marca lacunas sem penalizar e oferece recuperação de baseline mínima (ex.: "quer preencher dados faltantes?") quando o gap for significativo. Default de “gap significativo”: (a) ≥2 dias consecutivos sem registros **ou** (b) ≥3 dias sem registros na semana atual.
 
 - **Rubricas incompletas ou inválidas**: Sistema aceita rubricas parciais se critérios mínimos forem atendidos (conforme definição da meta), registra como "parcial" e não bloqueia conclusão. Se rubrica estiver completamente ausente em tarefa que exige quality gate, sistema bloqueia conclusão e oferece caminho mais curto para gerar evidência.
 
 - **Erros recorrentes com nomenclatura ambígua**: Sistema usa categorização semântica quando possível, mas permite marcação manual de equivalência pelo usuário se agrupamento automático falhar. Erros não agrupados são tratados separadamente até confirmação.
 
-- **Sono com múltiplos registros no mesmo dia**: Sistema mantém o último registro válido como fonte de verdade e deixa claro para o usuário que houve uma correção/atualização no mesmo dia. **[NEEDS CLARIFICATION: precisamos manter histórico de correções?]**
+- **Sono com múltiplos registros no mesmo dia**: Sistema mantém o último registro válido como fonte de verdade e deixa claro para o usuário que houve uma correção/atualização no mesmo dia. Default MVP: não manter histórico completo de correções, apenas marcação/`updated_at`.
 
 - **Consulta de progresso durante execução**: Sistema mostra estado atual (tarefas em progresso com rubricas pendentes) e diferencia claramente "concluído" de "em progresso", não contando como consistência até quality gate.
 
@@ -285,7 +287,10 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 - **Métricas de metas pausadas**: Sistema exclui metas pausadas da consistência ativa e revisão semanal, mas mantém histórico completo para retomada futura. Mostra claramente "meta pausada em [data]" na consulta.
 
-- **Sobrecarga de dados históricos**: Sistema mantém histórico suficiente para as comparações previstas (ex.: semana atual vs semana anterior) e garante que consultas continuem rápidas (PRD RNF1). **[NEEDS CLARIFICATION: qual política de histórico além do mínimo?]**
+- **Sobrecarga de dados históricos**: Sistema mantém histórico suficiente para as comparações previstas (ex.: semana atual vs semana anterior) e garante que consultas continuem rápidas (PRD RNF1). Política default de histórico (alinhada a `SPEC-015`):
+  - Registros diários não sensíveis (check-ins do dia, status de tarefas, diário de sono, rubricas): reter por **90 dias**.
+  - Evidência sensível bruta (ex.: áudio): reter por **7 dias** por padrão e permitir “não guardar” (ver `SPEC-015`/`SPEC-003`).
+  - Agregados semanais (consistência, médias, tendências, contagens): reter por **12 meses** para evolução de longo prazo.
 
 - **Entrada ambígua em consultas**: Se usuário solicita "progresso" sem especificar dia/semana, sistema assume "dia atual" por padrão e pede confirmação com 1 pergunta curta se contexto for ambíguo.
 
@@ -293,18 +298,24 @@ O sistema consolida todas as métricas da semana (consistência, rubricas, erros
 
 ### Measurable Outcomes
 
-- **SC-001**: Tempo de resposta para consulta de progresso do dia (médio e p95). **[NEEDS CLARIFICATION: target de tempo?]**
+- **SC-001**: Tempo de resposta para consulta de progresso do dia (médio e p95). Target default: médio ≤ 5s; p95 ≤ 15s.
 
 - **SC-002**: Sistema registra automaticamente consistência em 100% das tarefas concluídas com quality gate (sem necessidade de ação manual do usuário).
 
-- **SC-003**: Tempo de geração da revisão semanal (médio e p95) para consolidação de métricas (consistência, rubricas, erros, sono). **[NEEDS CLARIFICATION: target de tempo?]**
+- **SC-003**: Tempo de geração da revisão semanal (médio e p95) para consolidação de métricas (consistência, rubricas, erros, sono). Target default: médio ≤ 10s; p95 ≤ 30s.
 
-- **SC-004**: Taxa de identificação de erros recorrentes com limiar definido (ex.: “3 ocorrências” como exemplo do PRD) sem necessidade de marcação manual. **[NEEDS CLARIFICATION: qual limiar e meta/threshold?]**
+- **SC-004**: Taxa de identificação de erros recorrentes com limiar definido sem necessidade de marcação manual. Defaults:
+  - Limiar: “erro recorrente” = ≥3 ocorrências em janela rolante de **14 dias** (ou ≥3 na mesma semana, se isso ocorrer primeiro).
+  - Meta inicial: 100% de detecção para rótulos idênticos; quando houver agrupamento semântico, meta inicial ≥80% de agrupamentos corretos (ajustável).
 
-- **SC-005**: Tendências de rubricas e sono são calculadas corretamente (média do período, comparação com período anterior) quando há dados suficientes. **[NEEDS CLARIFICATION: critério de “dados suficientes”?]**
+- **SC-005**: Tendências de rubricas e sono são calculadas corretamente (média do período, comparação com período anterior) quando há dados suficientes. Default de “dados suficientes”:
+  - Para calcular média/tendência semanal: ≥3 registros no período (ex.: ≥3 rubricas ou ≥3 diários de sono na semana).
+  - Para comparar com semana anterior: a semana anterior também precisa de ≥3 registros; caso contrário, exibir “dados insuficientes para comparação” e mostrar apenas a semana atual.
 
-- **SC-006**: Fricção de registro: tempo médio diário gasto em registros manuais (excluindo execução de tarefas). **[NEEDS CLARIFICATION: target de tempo?]**
+- **SC-006**: Fricção de registro: tempo médio diário gasto em registros manuais (excluindo execução de tarefas). Target default: ≤ 2 minutos/dia.
 
-- **SC-007**: Sistema lida com dados faltantes/parciais sem penalizar consistência e oferece recuperação quando gap é significativo. **[NEEDS CLARIFICATION: critério de gap e meta/threshold?]**
+- **SC-007**: Sistema lida com dados faltantes/parciais sem penalizar consistência e oferece recuperação quando gap é significativo. Defaults:
+  - Gap significativo: ≥2 dias consecutivos sem registros ou ≥3 dias sem registros na semana atual.
+  - Meta inicial: oferecer recuperação em 100% dos casos em que gap significativo ocorre (sem spam; respeitar políticas de `SPEC-011`).
 
 - **SC-008**: Quality gates são aplicados corretamente: 0% de tarefas sem evidência contam na consistência.

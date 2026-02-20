@@ -138,18 +138,27 @@ O usuário quer sentir segurança ao fornecer evidências (especialmente áudio/
 2. **Scenario**: Evidência sensível tem alternativa quando definida
    - **Given** o usuário não pode compartilhar evidência sensível no momento
    - **When** pede alternativa
-   - **Then** o sistema oferece alternativa equivalente **se** a SPEC da feature definir equivalência; caso contrário, marca a situação como bloqueio/pendência e sugere o mínimo possível (PRD RNF4; RNF2) **[NEEDS CLARIFICATION]**: política global de equivalência e opt-out.
+   - **Then** o sistema oferece alternativa equivalente **apenas** quando a alternativa preserva o objetivo de aprendizagem/hábito (equivalência global definida nesta SPEC); caso contrário, marca a situação como **bloqueada por contexto** e sugere o mínimo possível para manter consistência (PRD RNF4; RNF2).
 
 ### Edge Cases *(mandatory)*
 
 - What happens when o usuário quer “marcar como feito mesmo assim” (bypass explícito do gate)? (PRD §5.4; RNF3)
-- How does system handle evidência parcial por falta de tempo (ex.: 1/3 itens)? Isso pode contar como “parcial” (não concluída) com registro de tentativa, sem quebrar a consistência? **[NEEDS CLARIFICATION]**: regras de contagem de consistência quando gate falha.
-- What happens when o usuário tem **0 minutos** e só quer “não quebrar a sequência”? Qual é o menor registro aceitável por tipo de tarefa (aprendizagem vs hábito)? (PRD RNF2; §5.1 MVD) **[NEEDS CLARIFICATION]**.
-- What happens when o usuário não pode enviar áudio por ambiente/privacidade? Quais evidências alternativas contam como equivalentes para speaking? **[NEEDS CLARIFICATION]**.
+- How does system handle evidência parcial por falta de tempo (ex.: 1/3 itens)?
+  - Para **aprendizagem/competência**: registrar como **tentativa** (não concluída), manter o gate como “não satisfeito”, e indicar exatamente o que faltou. Tentativa **não conta** como consistência da meta intensiva, mas pode contar como “micro-consistência do dia” quando aplicável (ver `SPEC-002`).
+  - Para **hábito/fundação**: se o registro mínimo do hábito foi atendido, pode contar como concluído (gate proporcional).
+- What happens when o usuário tem **0 minutos** e só quer “não quebrar a sequência”?
+  - Definir **micro-consistência** (≤ 30–60s) como: 1 micro-step observável.
+  - Para **aprendizagem**: micro-consistência pode ser 1 item de retrieval (1 pergunta/1 item), registrado como **MVD micro/tentativa**, sem contar como tarefa concluída com qualidade.
+  - Para **hábito/fundação**: o menor registro (ex.: diário mínimo) pode satisfazer o gate proporcional e contar como concluído.
+- What happens when o usuário não pode enviar áudio por ambiente/privacidade?
+  - Para tarefas cujo objetivo é **speaking**: **não existe equivalência plena** ao áudio por padrão; o sistema marca a tarefa como **bloqueada por contexto** (sem culpa) e oferece alternativa que preserve consistência (ex.: retrieval curto), registrada como tentativa/substituição (não como conclusão de speaking).
+  - Para tarefas cujo objetivo é **compreensão/retrieval**: respostas em texto são evidência equivalente válida.
 - How does system handle evidência fraudável (ex.: “sim, fiz” sem comprovação)? O sistema deve manter a exigência de evidência mínima e oferecer alternativa observável (PRD §5.4).
 - What happens when o usuário some no meio do gate (abandona conversa) e volta depois? O sistema deve permitir retomar a partir do que faltava (PRD §5.3; RNF2).
 - How does system handle quando o usuário pede para “consultar os steps do dia atual” e quer ver o que foi aceito/rejeitado pelos gates (PRD §2)?
-- What happens when uma SPEC de feature define gates que geram fricção excessiva para o usuário (contradiz RNF1)? Deve existir um limite ou revisão? **[NEEDS CLARIFICATION]**.
+- What happens when uma SPEC de feature define gates que geram fricção excessiva para o usuário (contradiz RNF1)?
+  - O sistema deve tratar como “gate pesado demais” quando houver repetidas falhas por falta de evidência **ou** quando o usuário indicar fricção alta (ver SC-005).
+  - Resposta: oferecer o **caminho mínimo** que ainda preserve o objetivo (reduzir itens, reduzir tamanho da evidência, manter 1 único critério) **ou** marcar como bloqueado e levar ajuste para revisão semanal (`SPEC-007`) quando não houver como preservar objetivo sem descaracterizar.
 
 ## Requirements *(mandatory)*
 
@@ -162,11 +171,17 @@ O usuário quer sentir segurança ao fornecer evidências (especialmente áudio/
 - **FR-005**: System MUST, quando um gate falhar, comunicar: (a) **por que** falhou e (b) **o menor próximo passo** para satisfazer o gate (PRD RNF1; RNF3).
 - **FR-006**: System MUST aceitar conclusão quando o gate for satisfeito e registrar o **resultado do gate** (satisfeito/não satisfeito) junto da tarefa (PRD §5.4).
 - **FR-007**: System MUST lidar com evidência inválida (vazia, ilegível, inaudível) solicitando reenvio ou alternativa equivalente **quando definida** (PRD RNF3).
-- **FR-008**: System MUST suportar evidência alternativa apenas quando a equivalência estiver definida na SPEC do domínio/feature correspondente (ex.: falar vs alternativa) (PRD §5.4). **[NEEDS CLARIFICATION]**: existe uma política global de equivalência para evidências?
+- **FR-008**: System MUST suportar evidência alternativa apenas quando a alternativa preservar o objetivo do gate. Política global de equivalência (defaults):
+  - **Compreensão (input)**: respostas em texto às perguntas de compreensão são equivalência válida.
+  - **Retrieval**: respostas em texto são equivalência válida.
+  - **Speaking (objetivo: produção oral)**: **áudio é a evidência padrão**; quando áudio for impossível/opt-out ativo, o sistema MUST marcar como bloqueado/substituído e oferecer alternativa de consistência (não equivalente) registrada como tentativa.
 - **FR-009**: System MUST registrar, quando aplicável, **rubricas de qualidade** (ex.: speaking) conforme definido pelas SPECS de domínio (PRD §8.1) e associá-las a uma evidência do dia.
 - **FR-010**: System MUST registrar e manter “erros recorrentes” e permitir que eles sejam usados para acionar reforços com evidência mínima (PRD §5.4; R3; §§8.1–8.2).
 - **FR-011**: System MUST permitir ao usuário consultar o estado do dia: tarefas concluídas/pendentes e quais passaram/falharam gates (PRD §2; §5.3).
-- **FR-012**: System MUST operar com privacidade por padrão: antes de coletar evidências potencialmente sensíveis, explicar o mínimo guardado e o propósito (PRD RNF4). **[NEEDS CLARIFICATION]**: política de retenção/remoção de evidência (especialmente áudio).
+- **FR-012**: System MUST operar com privacidade por padrão: antes de coletar evidências potencialmente sensíveis, explicar o mínimo guardado e o propósito (PRD RNF4; ver `SPEC-015`) e aplicar defaults de retenção:
+  - **Conteúdo sensível bruto (ex.: áudio)**: retenção curta por padrão (default: **7 dias**) e opção de **não guardar** (processar/validar e descartar).
+  - **Derivados não sensíveis**: manter por mais tempo (ex.: resultado do gate, rubrica total, contagens/tendências em `SPEC-016`).
+  - O usuário MUST conseguir apagar evidências a qualquer momento (conforme `SPEC-015`), entendendo o impacto em tendências/revisões.
 
 ### Non-Functional Requirements
 
@@ -207,8 +222,8 @@ O usuário quer sentir segurança ao fornecer evidências (especialmente áudio/
 
 - **Entrada ausente/ambígua**: se o usuário tenta concluir sem enviar evidência, o sistema deve pedir apenas o mínimo necessário (1 passo) e evitar múltiplas perguntas longas (PRD RNF1).
 - **Dia ruim / pouca energia**: oferecer versão mínima do gate quando fizer sentido (especialmente em hábitos/fundação) e reconhecer esforço sem culpa (PRD RNF2; RNF3).
-- **Evidência inválida/ilegível/inaudível**: não aceitar conclusão; pedir reenvio ou alternativa equivalente definida pela SPEC do domínio (PRD RNF3). **[NEEDS CLARIFICATION]**: padrão de equivalência quando áudio não é possível.
-- **Evidência parcial**: manter como “não concluído” e indicar exatamente o que falta; opcionalmente registrar “tentativa” para fins de tendência sem contar como concluído. **[NEEDS CLARIFICATION]**: regra de “tentativa” vs “concluído” no PRD.
+- **Evidência inválida/ilegível/inaudível**: não aceitar conclusão; pedir reenvio. Se o usuário não puder enviar a evidência padrão, aplicar política global de equivalência (FR-008): oferecer equivalência quando preserva objetivo; caso contrário marcar bloqueio/substituição e sugerir mínimo viável (RNF2/RNF3).
+- **Evidência parcial**: manter como “não concluído” e indicar exatamente o que falta; registrar como **tentativa** (não concluída) para fins de histórico e micro-consistência, sem contar como consistência da meta intensiva.
 - **Tentativa de bypass**: explicar brevemente que a tarefa não conta sem evidência por design (progresso real) e oferecer a rota mínima; manter tom firme e respeitoso (PRD §5.4; RNF3).
 - **Usuário some**: permitir retomar o gate do ponto em que parou e lembrar o que faltava, sem penalizar (PRD §5.3; RNF2).
 - **Sobrecarga**: se o gate estiver pesado demais para o contexto, orientar a escolha de um plano mínimo (MVD) ou adiar a tarefa, sem “validar” aprendizagem sem evidência (PRD RNF2; §6.2; §13).
@@ -222,5 +237,5 @@ O usuário quer sentir segurança ao fornecer evidências (especialmente áudio/
 - **SC-002**: Aumento da taxa de tarefas de aprendizagem com evidência válida (ex.: respostas de checagem, rubrica preenchida, etc.) por semana (PRD §8.1–§8.2).
 - **SC-003**: Redução na recorrência de erros-alvo ao longo de semanas quando reforços são acionados (PRD R3; §9.2).
 - **SC-004**: Em semanas com baixa energia/tempo, aumento da taxa de conclusão de MVD/Plano C para hábitos/fundação (PRD RNF2; §6.1; §8.3).
-- **SC-005**: Manter baixa fricção percebida: usuário consegue completar gates sem “projeto” e com interação curta (PRD RNF1). **[NEEDS CLARIFICATION]**: como medir “fricção percebida” (pergunta explícita vs proxy).
+- **SC-005**: Manter baixa fricção percebida: medir fricção via auto-relato na revisão semanal (`SPEC-007`): pergunta “Quão pesado foi evidenciar esta semana? (0–10)”. Usar também um proxy simples: % de falhas de gate por “evidência ausente” repetida.
 

@@ -104,11 +104,11 @@ O usuário quer um jeito simples de consultar o que estava planejado para o dia 
 ### Edge Cases *(mandatory)*
 
 - What happens when o usuário **não informa tempo nem energia** no check-in? (PRD §9.1)
-- What happens when o usuário informa **tempo** mas responde energia de forma ambígua (ex.: “tanto faz”, “meh”)? O sistema deve pedir uma única confirmação ou assumir defaults? (PRD RNF1) **[NEEDS CLARIFICATION]**: defaults oficiais para energia.
-- What happens when o usuário pede **muitas tarefas** em um dia ruim? O sistema deve impor um limite duro (ex.: apenas Plano C + 1 opcional) ou negociar? (PRD RNF2; §6.2) **[NEEDS CLARIFICATION]**.
-- What happens when o usuário tem **0 minutos** e quer “não quebrar a sequência”? Qual é o menor step observável aceitável para contar como consistência do dia? (PRD RNF2; §5.1 MVD) **[NEEDS CLARIFICATION]**.
-- What happens when o usuário tenta ativar **mais de 2 metas intensivas** simultaneamente e exige que todas entrem no plano diário? (PRD §6.2) O sistema deve bloquear ou apenas recomendar? **[NEEDS CLARIFICATION]**.
-- How does the system handle **restrições de ambiente** (ex.: “não posso gravar áudio”, “sem privacidade agora”) que afetam a executabilidade de tarefas? A rotina diária precisa oferecer substituição equivalente ou apenas marcar como bloqueado? (PRD RNF1) **[NEEDS CLARIFICATION]**.
+- What happens when o usuário informa **tempo** mas responde energia de forma ambígua (ex.: “tanto faz”, “meh”)? O sistema deve pedir **uma única confirmação** (ex.: “Energia 0–10?” com opções 3/5/7). Se ainda ambíguo, assumir **energia = 5** e seguir (RNF1). Se vier texto, mapear defaults rápidos: “meh/tanto faz” → 4; “ok” → 5; “bem” → 7; “péssimo” → 2.
+- What happens when o usuário pede **muitas tarefas** em um dia ruim? Em **Plano C**, impor limite duro anti-overload: no máximo **2 itens** (1 prioridade mínima + 1 fundação mínima quando aplicável). Se o usuário insistir, oferecer no máximo **1 bônus opcional** condicionado a um check-in rápido de energia/tempo melhor (RNF2; §6.2).
+- What happens when o usuário tem **0 minutos** e quer “não quebrar a sequência”? Definir **micro-consistência** (≤ 30–60s): conta como “mantive vivo” apenas se houver **um micro-step observável**, ex.: (a) check-in mínimo + aceitar “MVD micro”, ou (b) responder 1 item de retrieval (quando aplicável), ou (c) registrar diário mínimo de fundação (quando aplicável). Isso deve ser registrado como **MVD micro/tentativa**, e não como conclusão de aprendizagem com qualidade (alinhado a `SPEC-003`).
+- What happens when o usuário tenta ativar **mais de 2 metas intensivas** simultaneamente e exige que todas entrem no plano diário? A rotina diária **não bloqueia** a geração do plano (RNF1), mas **nunca agenda tarefas de mais de 2 metas intensivas** no mesmo dia. O sistema pede **uma escolha** (“qual fica fora hoje?”). Se não houver resposta, aplica default protetivo: mantém as 2 metas intensivas do ciclo e marca a outra como “adiada/fora do plano de hoje” (PRD §6.2).
+- How does the system handle **restrições de ambiente** (ex.: “não posso gravar áudio”, “sem privacidade agora”) que afetam a executabilidade de tarefas? O sistema marca a tarefa como **bloqueada por contexto** (sem culpa), oferece **uma alternativa equivalente** se definida pela SPEC do domínio (ex.: `SPEC-004` + `SPEC-003`), e, se não existir equivalência definida, substitui por um **retrieval curto** ou MVD mantendo algo observável, registrando o bloqueio para revisão semanal (RNF1/RNF2; ver também `SPEC-015`).
 
 ## Requirements *(mandatory)*
 
@@ -116,7 +116,12 @@ O usuário quer um jeito simples de consultar o que estava planejado para o dia 
 
 - **FR-001**: System MUST coletar no check-in diário, no mínimo: **tempo disponível** e **energia** (PRD §9.1).
 - **FR-002**: System MUST permitir check-in rápido (campos mínimos) sem impedir a geração do plano (PRD RNF1).
-- **FR-003**: System MUST selecionar e comunicar explicitamente um **Plano A, B ou C** com base nas entradas do check-in (PRD §9.1; R1; RNF2). **[NEEDS CLARIFICATION]**: regras/limiares para classificar A vs B vs C a partir de tempo (5/15/30/60+) e energia (0–10).
+- **FR-003**: System MUST selecionar e comunicar explicitamente um **Plano A, B ou C** com base nas entradas do check-in (PRD §9.1; R1; RNF2), usando limiares default:
+  - Energia baixa: 0–3; média: 4–6; alta: 7–10.
+  - Plano C (MVD): se **tempo ≤ 15** **OU** **energia ≤ 3**.
+  - Plano A: se **tempo ≥ 60** **E** **energia ≥ 7**.
+  - Plano B: demais casos.
+  - O sistema MUST incluir uma justificativa curta: “Escolhi Plano X porque tempo = Y e energia = Z”.
 - **FR-004**: System MUST retornar um plano diário com a estrutura do PRD: **1 prioridade absoluta**, **1–2 complementares** e **1 tarefa de fundação** (quando aplicável) (PRD §9.1).
 - **FR-005**: System MUST descrever cada tarefa do plano com:
   - **o que fazer** (descrição operacional em linguagem natural),
@@ -126,7 +131,7 @@ O usuário quer um jeito simples de consultar o que estava planejado para o dia 
 - **FR-007**: System MUST permitir retomada após interrupção, mostrando o estado do dia (feito/faltando) e sugerindo o próximo passo viável no tempo restante (PRD §5.3; RNF2).
 - **FR-008**: System MUST manter um registro do dia atual com: check-in, plano gerado e status por tarefa (planejada/em progresso/concluída/bloqueada/adiada) para suportar consulta de steps (PRD §2).
 - **FR-009**: System MUST permitir ao usuário consultar “meu plano de hoje” e “o que já fiz hoje” no dia atual (PRD §2).
-- **FR-010**: System MUST lidar com sobrecarga de metas em paralelo: quando o usuário tentar incluir metas intensivas demais, o sistema MUST sinalizar o limite e orientar uma escolha (PRD §6.2; §13). **[NEEDS CLARIFICATION]**: se a rotina diária pode bloquear a geração do plano até o usuário escolher ou se apenas recomenda.
+- **FR-010**: System MUST lidar com sobrecarga de metas em paralelo: quando o usuário tentar incluir metas intensivas demais, o sistema MUST sinalizar o limite e orientar **uma única escolha** (PRD §6.2; §13). A rotina diária MUST **não bloquear** a geração do plano; em vez disso, MUST gerar um plano válido com no máximo 2 metas intensivas e marcar as demais como “fora do plano de hoje/adiadas” até o usuário escolher.
 - **FR-011**: System MUST manter o fluxo diário curto e previsível (PRD RNF1; §9.1).
 
 ### Non-Functional Requirements
@@ -134,7 +139,10 @@ O usuário quer um jeito simples de consultar o que estava planejado para o dia 
 - **NFR-001**: System MUST manter simplicidade e baixa carga cognitiva: interação curta e previsível (PRD RNF1; §5.3).
 - **NFR-002**: System MUST ser robusto a dias ruins: sempre existir um Plano C (MVD) executável no pior cenário (PRD RNF2; §4).
 - **NFR-003**: System MUST manter segurança psicológica: feedback firme, orientado a processo e ajuste, sem humilhação/punição (PRD RNF3; §3).
-- **NFR-004**: System MUST operar com privacidade por padrão no registro do dia: coletar o mínimo e ser claro sobre o que foi guardado e por quê (PRD RNF4). **[NEEDS CLARIFICATION]**: política de retenção (quais dados do “dia” ficam guardados e por quanto tempo).
+- **NFR-004**: System MUST operar com privacidade por padrão no registro do dia: coletar o mínimo e ser claro sobre o que foi guardado e por quê (PRD RNF4; ver `SPEC-015`). Defaults de retenção para “dados do dia”:
+  - Check-in, plano e status de tarefas do dia: reter por **90 dias** para permitir consulta e tendência recente.
+  - Conteúdo sensível bruto (quando houver): retenção curta por padrão e com opt-out conforme `SPEC-015`.
+  - Métricas agregadas/tendências seguem `SPEC-016`.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -164,7 +172,7 @@ O usuário quer um jeito simples de consultar o que estava planejado para o dia 
 - **Dia ruim**: oferecer Plano C (MVD) imediatamente e reforçar que “consistência mínima” é sucesso do dia, sem culpa (PRD RNF2; RNF3).
 - **Mudança de contexto**: permitir replanejar por tempo/energia e retornar um plano ajustado conciso (PRD §5.2; §9.1).
 - **Usuário some**: ao retornar, mostrar estado (feito/faltando) e sugerir o próximo passo viável (PRD §5.3).
-- **Sobrecarga**: reduzir escopo e orientar escolha/pausa de metas intensivas, mantendo tom protetivo (PRD §6.2; RNF3). **[NEEDS CLARIFICATION]**: se há bloqueio obrigatório quando o limite é violado.
+- **Sobrecarga**: reduzir escopo e orientar escolha/pausa de metas intensivas, mantendo tom protetivo (PRD §6.2; RNF3). Não bloquear o plano; aplicar default protetivo (no máximo 2 metas intensivas no dia) e pedir uma única escolha para o que fica fora.
 
 ## Success Criteria *(mandatory)*
 
@@ -172,4 +180,4 @@ O usuário quer um jeito simples de consultar o que estava planejado para o dia 
 
 - **SC-001**: Usuário conclui check-in e recebe plano em \( \le \) 2 minutos de interação total (PRD §9.1; RNF1).
 - **SC-002**: Em dias de baixa energia/tempo, a taxa de dias com Plano C (MVD) concluído aumenta ao longo de semanas (PRD RNF2).
-- **SC-003**: A taxa de dias com “plano consultável” (usuário consegue ver plano e steps do dia) tende a alta e reduz relatos de “me perdi no dia” (PRD §2; RNF1). **[NEEDS CLARIFICATION]**: como o PRD deseja medir “me perdi no dia” (pergunta explícita? proxy?).
+- **SC-003**: A taxa de dias com “plano consultável” (usuário consegue ver plano e steps do dia) tende a alta e reduz relatos de “me perdi no dia” (PRD §2; RNF1). Medir “me perdi no dia” via auto-relato na revisão semanal (`SPEC-007`): pergunta simples “Em quantos dias você se perdeu esta semana? (0–7)”.

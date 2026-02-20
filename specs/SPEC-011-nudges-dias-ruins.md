@@ -1,307 +1,236 @@
-# Feature Specification: Nudges/Lembretes "sem spam" + Robustez a dias ruins (Planos B/C + MVD)
+# Feature Specification: Nudges/Lembretes “sem spam” + Robustez a dias ruins (degradação A→B→C→MVD)
 
-**Created**: 2026-02-17  
-**PRD Base**: §5.1, §5.3, §6.2, 11 (RNF1, RNF2, RNF3)
+**Created**: 2026-02-19  
+**PRD Base**: §5.1, §5.2, §5.3, §6.2, §9.1, §10 (R6), §11 (RNF1–RNF4), §13, §14  
+**Related**: `SPEC-002` (rotina diária/planos), `SPEC-003` (gates/evidência), `SPEC-015` (privacidade), `SPEC-016` (métricas)
 
 ## Caso de uso *(mandatory)*
 
-O sistema precisa manter o usuário engajado e em movimento mesmo em dias ruins (baixa energia, pouco tempo, estresse), sem gerar spam ou frustração. Quando o usuário não responde ao check-in ou não executa tarefas, o sistema deve oferecer alternativas progressivamente mais simples (Plano A → B → C → MVD) e enviar lembretes estratégicos que respeitam limites de frequência e contexto.
+O usuário inevitavelmente tem dias ruins (pouco tempo/energia, estresse, ambiente ruim) e pode sumir/atrasar respostas. O sistema precisa manter o usuário “em movimento” com **nudges úteis**, sem virar spam, e com **degradação graciosa**:
 
-**Problema**: Dias ruins são inevitáveis e podem quebrar consistência. O sistema precisa:
-- Detectar quando o usuário está em dificuldade (não responde, não executa, energia baixa)
-- Oferecer planos alternativos automaticamente sem exigir decisão complexa
-- Enviar lembretes úteis sem ser intrusivo
-- Manter a identidade do hábito vivo mesmo com execução mínima
+- se não responde ao check-in → oferecer alternativa leve automaticamente;
+- se não executa tarefas → propor versão mais simples (sem culpa) e preservar consistência mínima;
+- se há sequência de falhas/sumiço → reduzir expectativa, oferecer MVD e eventualmente pausar proatividade.
 
-**Fluxos principais**:
-1. Check-in não respondido → sistema oferece Plano B/C automaticamente após um período configurável de ausência de resposta
-2. Tarefa não executada → sistema sugere alternativa mais simples ou MVD
-3. Múltiplas falhas consecutivas → sistema reduz expectativa e foca em manutenção de hábito
-4. Lembretes contextuais → sistema envia no momento certo, respeitando limites de frequência
+Esta SPEC define:
+- quando enviar lembretes (e quando **não** enviar),
+- limites de frequência (“budget de nudges”),
+- escalonamento A→B→C→MVD,
+- comportamento em ausência prolongada,
+- e requisitos de tom/segurança psicológica/privacidade.
+
+> Importante: esta SPEC não define como planos são gerados nem conteúdo das tarefas (isso é `SPEC-002`). Aqui é **proatividade, anti-spam e degradação**.
+
+## Scope & Non-goals *(recommended)*
+
+**In scope (MVP slice)**:
+- Política anti-spam com limites claros (por tarefa e por dia).
+- Lembretes consolidados (uma mensagem para várias pendências).
+- Timeouts padrão para “não respondeu” e “não começou”.
+- Degradação automática para Plano B/C e MVD.
+- Pausa automática de nudges após ausência prolongada.
+
+**Non-goals (agora)**:
+- Não otimizar com ML; regras simples e observáveis bastam.
+- Não implementar sistema de notificações avançado fora do Telegram.
+
+## Definições *(recommended)*
+
+- **Proativo**: mensagem enviada sem o usuário iniciar a conversa.
+- **Nudge budget (dia)**: máximo de mensagens proativas por dia para evitar spam.
+- **Quiet hours**: janela de sono/descanso em que o sistema não envia nudges (configurável).
+- **Degradação**: reduzir exigência mantendo identidade do hábito (A→B→C→MVD).
+- **MVD**: mínimo viável diário do ciclo/metas ativas (definido no onboarding e ajustável), tipicamente 5–15 min total.
+
+## Políticas padrão (defaults) *(recommended)*
+
+> O usuário pode ajustar depois, mas o MVP precisa de defaults.
+
+### Anti-spam (budgets)
+- **Budget diário**: no máximo **3** mensagens proativas/dia.
+- **Por tarefa**: no máximo **2** lembretes proativos/dia por tarefa.
+- **Intervalo mínimo**: pelo menos **3 horas** entre lembretes proativos (mesmo que sejam tarefas diferentes), exceto 1 “check-in do dia”.
+- **Consolidação**: se houver 2+ pendências, enviar **1** mensagem consolidada em vez de várias.
+
+### Quiet hours
+- Respeitar quiet hours do usuário.
+- **Default** (se ainda não configurado): **22:00–07:00** no fuso do usuário (até ser ajustado no onboarding).
+
+### Timeouts
+- **Check-in sem resposta**: se não houver resposta em **90 min**, oferecer automaticamente um **Plano B leve** (“assumi dia corrido”).
+- Se continuar sem resposta até **6 horas** após o check-in, oferecer **Plano C/MVD** (uma única mensagem, se ainda houver budget do dia).
+- **Tarefa sem início**: se uma tarefa foi sugerida e não há sinal de início em **4 horas**, enviar 1 lembrete curto (respeitando budget/quiet hours).
+- **Tarefa ainda pendente**: se após o 1º lembrete passar **6 horas** sem avanço, oferecer “versão menor” ou MVD (sem insistir além disso no mesmo dia).
+
+### Ausência prolongada
+- Se não houver qualquer interação do usuário por **7 dias**, o sistema envia **1** mensagem final de “check de bem-estar + como retomar” e depois **pausa nudges proativos** até o usuário retornar.
+
+### Privacidade por padrão em nudges
+- Nudges não devem incluir conteúdo sensível (ex.: transcrições/trechos emocionais) por padrão; apenas títulos neutros (“Inglês: loop mínimo”, “Sono: diário”).
+- Opt-outs e retenção seguem `SPEC-015`.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Check-in não respondido: oferta automática de Plano B/C (Priority: P1)
+### User Story 1 — Check-in não respondido → oferta automática de Plano B/C (Priority: P1)
 
-O usuário não responde ao check-in matinal dentro de um período razoável (configurável). O sistema detecta a ausência e, em vez de esperar indefinidamente, oferece automaticamente um Plano B ou C baseado no histórico recente e padrões observados, reduzindo a barreira de entrada.
+**Why this priority**: Robustez a dias ruins (RNF2) e baixa carga cognitiva (RNF1).
 
-**Why this priority**: Evita que um dia ruim vire uma falha completa. Mantém o usuário em movimento com mínimo esforço cognitivo. É fundamental para robustez (RNF2).
-
-**Independent Test**: Simular ausência de resposta ao check-in e verificar se o sistema oferece alternativas automaticamente após timeout configurável.
+**Independent Test**: Simular check-in enviado, sem resposta; validar oferta automática de B e depois C/MVD, respeitando quiet hours e budget.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: Check-in não respondido, sistema oferece Plano B automaticamente
-   - **Given** usuário recebeu check-in em um horário combinado e não respondeu dentro do período configurado
-   - **When** sistema detecta expiração do período configurável de resposta ao check-in **[NEEDS CLARIFICATION: qual período padrão?]**
-   - **Then** sistema envia mensagem: "Não recebi seu check-in. Vou assumir um dia corrido e sugerir um Plano B leve. Responda 'ok' para aceitar ou envie seu check-in para personalizar."
-   - **And** sistema apresenta Plano B pré-configurado (1 tarefa prioridade + 1 fundação mínima)
-   - **And** se usuário continuar sem responder após um segundo período configurável **[NEEDS CLARIFICATION: qual comportamento/intervalo?]**, sistema oferece Plano C automaticamente
+1. **Scenario**: Timeout de check-in oferece Plano B
+   - **Given** o sistema enviou o check-in do dia
+   - **When** passam 90 minutos sem resposta
+   - **Then** o sistema envia uma mensagem curta oferecendo um Plano B leve (com 1 prioridade + 1 fundação mínima), com opção “ok” para aceitar ou enviar check-in para personalizar
 
-2. **Scenario**: Check-in não respondido, histórico indica energia baixa recorrente
-   - **Given** usuário não respondeu check-in e histórico mostra energia baixa recorrente nos últimos dias **[NEEDS CLARIFICATION: qual limiar e janela?]**
-   - **When** sistema detecta timeout e analisa padrão
-   - **Then** sistema oferece diretamente Plano C (MVD) com mensagem empática: "Parece que você está com energia baixa. Vamos manter o essencial hoje?"
-   - **And** Plano C contém apenas 1 tarefa mínima de cada meta ativa (ex.: 5 min input inglês, 1 exercício Java simples, diário sono)
+2. **Scenario**: Ausência continua → oferta única de Plano C/MVD
+   - **Given** o usuário não respondeu ao Plano B
+   - **When** passam 6 horas desde o check-in e ainda há budget do dia
+   - **Then** o sistema oferece Plano C/MVD em 1 mensagem (“vamos manter o essencial hoje?”) sem tom punitivo
 
-3. **Scenario**: Usuário responde após timeout mas antes de execução automática
-   - **Given** sistema já ofereceu Plano B automaticamente após timeout
-   - **When** usuário envia check-in completo (tempo/energia/humor)
-   - **Then** sistema descarta Plano B automático e gera Plano personalizado baseado no check-in real
-   - **And** sistema registra que houve atraso mas não penaliza consistência
+3. **Scenario**: Usuário responde depois → priorizar check-in real
+   - **Given** o sistema já ofereceu Plano B/C
+   - **When** o usuário envia check-in real
+   - **Then** o sistema ajusta para o contexto real e não “penaliza” o atraso
 
 ---
 
-### User Story 2 - Tarefa não executada: sugestão progressiva de alternativas (Priority: P1)
+### User Story 2 — Tarefa não executada → alternativa progressivamente mais simples (Priority: P1)
 
-O usuário recebeu uma tarefa do Plano A mas não a executou dentro de um prazo esperado (configurável). O sistema detecta a não execução e oferece alternativas progressivamente mais simples, sempre mantendo a identidade do hábito.
+**Why this priority**: Evita que uma tarefa trave o dia inteiro; mantém identidade do hábito (RNF2).
 
-**Why this priority**: Evita que uma tarefa difícil bloqueie todo o progresso. Permite degradação graciosa mantendo consistência. Essencial para RNF2 (robustez a dias ruins).
-
-**Independent Test**: Simular tarefa não executada e verificar se sistema oferece alternativas em cascata (tarefa original → simplificada → mínima → MVD).
+**Independent Test**: Simular tarefa pendente sem início; validar lembrete + oferta de simplificação + MVD, sem exceder budgets.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: Tarefa de inglês não executada, sistema oferece versão simplificada
-   - **Given** usuário recebeu uma tarefa no Plano A e não executou dentro do prazo configurado **[NEEDS CLARIFICATION: como definir prazo por tipo de tarefa?]**
-   - **When** sistema detecta não execução no prazo configurado
-   - **Then** sistema envia: "Não vi execução da tarefa de inglês. Quer tentar uma versão mais rápida? Opção 1: Input 10 min + Speaking 3 min. Opção 2: Apenas input 15 min. Responda 1 ou 2."
-   - **And** se usuário escolher opção, sistema atualiza tarefa e reinicia timer
-   - **And** se usuário não responder dentro de um período configurável **[NEEDS CLARIFICATION]**, sistema oferece MVD (apenas a ação mínima daquela meta)
+1. **Scenario**: Lembrete curto após ausência de início
+   - **Given** existe uma tarefa planejada hoje
+   - **When** passam 4 horas sem qualquer sinal de início
+   - **Then** o sistema envia 1 lembrete curto: “Quer começar agora ou prefere reduzir?”
 
-2. **Scenario**: Tarefa de Java não executada, sistema oferece recall mínimo
-   - **Given** usuário recebeu tarefa "Prática deliberada 30 min + Quiz" e não executou
-   - **When** sistema detecta não execução após prazo
-   - **Then** sistema oferece: "Java não executado. Vamos manter o hábito com um recall rápido de 5 min? Responda 'sim' ou 'pular hoje'."
-   - **And** se usuário escolher "sim", sistema envia 1 pergunta de recall simples
-   - **And** se usuário escolher "pular hoje", sistema registra como exceção sem culpa e não conta como falha de consistência
+2. **Scenario**: Sem avanço após lembrete → oferecer versão menor
+   - **Given** o lembrete foi enviado
+   - **When** passam 6 horas sem avanço e ainda há budget do dia
+   - **Then** o sistema oferece uma versão menor (2 opções no máximo) ou MVD se o contexto indicar dia ruim
 
-3. **Scenario**: Múltiplas tarefas não executadas no mesmo dia
-   - **Given** usuário não executou 2+ tarefas do Plano A no mesmo dia
-   - **When** sistema detecta padrão de não execução
-   - **Then** sistema envia mensagem consolidada: "Vejo que hoje está difícil executar as tarefas. Vamos focar no mínimo essencial? Proponho: [lista MVD de cada meta ativa]"
-   - **And** sistema oferece executar tudo de uma vez em bloco curto (ex.: 15 min total)
-   - **And** se usuário aceitar MVD, sistema marca todas as tarefas originais como "substituídas por MVD" sem penalizar
+3. **Scenario**: Múltiplas tarefas pendentes → consolidação + foco no mínimo
+   - **Given** 2+ tarefas pendentes no dia
+   - **When** o sistema decide lembrar
+   - **Then** envia 1 mensagem consolidada propondo “mínimo essencial” (MVD) e perguntando por 1 escolha simples (“topa o mínimo hoje?”)
 
 ---
 
-### User Story 3 - Lembretes contextuais sem spam (Priority: P1)
+### User Story 3 — Lembretes sem spam (budgets + quiet hours + não interromper execução) (Priority: P1)
 
-O sistema envia lembretes estratégicos quando necessário, respeitando limites de frequência (configuráveis) e contexto (não enviar durante horários de sono, não enviar se usuário já está executando).
+**Why this priority**: Spam destrói o produto; lembretes precisam ser raros e úteis (RNF1/RNF3).
 
-**Why this priority**: Lembretes são necessários para manter engajamento, mas spam gera frustração e desengajamento. Balanceamento crítico para RNF1 (simplicidade) e RNF3 (segurança psicológica).
-
-**Independent Test**: Simular diferentes cenários de lembretes e verificar se limites de frequência e contexto são respeitados.
+**Independent Test**: Simular dia com múltiplas pendências, com quiet hours, e com tarefa em progresso.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: Lembrete inicial após período configurável sem início de execução
-   - **Given** usuário recebeu tarefa e não iniciou execução dentro do prazo configurado para iniciar **[NEEDS CLARIFICATION]**
-   - **When** sistema verifica status da tarefa após esse prazo
-   - **Then** sistema envia primeiro lembrete: "Lembrete: você tem a tarefa [nome] pendente. Quer começar agora ou prefere ajustar?"
-   - **And** sistema registra data/hora do lembrete
-   - **And** sistema não envia outro lembrete da mesma tarefa antes do intervalo mínimo configurado **[NEEDS CLARIFICATION]**
+1. **Scenario**: Não enviar durante quiet hours
+   - **Given** é horário dentro de quiet hours
+   - **When** um lembrete estaria elegível
+   - **Then** o sistema não envia e reavalia após o fim da janela
 
-2. **Scenario**: Lembrete não enviado durante horário de sono
-   - **Given** tarefa não executada e horário atual está dentro da janela de sono configurada pelo usuário
-   - **When** sistema verifica se deve enviar lembrete
-   - **Then** sistema não envia lembrete
-   - **And** sistema agenda lembrete para após o fim da janela de sono
-   - **And** sistema registra que lembrete foi adiado por horário de sono
+2. **Scenario**: Não enviar se tarefa está em progresso
+   - **Given** a tarefa está marcada como “em progresso” ou há evidência parcial
+   - **When** um lembrete seria elegível
+   - **Then** o sistema não envia
 
-3. **Scenario**: Lembrete não enviado se usuário já está executando
-   - **Given** usuário iniciou execução de tarefa (enviou evidência parcial ou marcou "em progresso")
-   - **When** sistema verifica se deve enviar lembrete para essa tarefa
-   - **Then** sistema não envia lembrete
-   - **And** sistema cancela qualquer lembrete agendado para essa tarefa
-
-4. **Scenario**: Limite máximo de lembretes atingido
-   - **Given** sistema já enviou a quantidade máxima de lembretes configurada para a mesma tarefa **[NEEDS CLARIFICATION: qual limite padrão?]**
-   - **When** sistema verifica se deve enviar mais um lembrete
-   - **Then** sistema não envia mais lembretes para essa tarefa enquanto o limite permanecer atingido
-   - **And** sistema assume que tarefa não será executada e oferece alternativa (Plano B/C ou MVD) na próxima interação
-
-5. **Scenario**: Lembrete consolidado para múltiplas tarefas pendentes
-   - **Given** usuário tem 3 tarefas pendentes e sistema pode enviar lembretes para todas
-   - **When** sistema verifica lembretes pendentes
-   - **Then** sistema consolida em 1 mensagem: "Você tem 3 tarefas pendentes hoje: [lista]. Quer ajustar o plano ou prefere focar no mínimo essencial?"
-   - **And** sistema conta como 1 lembrete por tarefa (não 3 lembretes separados)
-   - **And** sistema respeita intervalo mínimo configurado antes de enviar outro lembrete consolidado **[NEEDS CLARIFICATION]**
+3. **Scenario**: Budget diário impede insistência
+   - **Given** o sistema já enviou 3 nudges proativos no dia
+   - **When** novas pendências surgem
+   - **Then** o sistema não envia mais proativos naquele dia e deixa para a próxima interação do usuário
 
 ---
 
-### User Story 4 - MVD (Mínimo Viável Diário) como rede de segurança (Priority: P1)
+### User Story 4 — Sequência de dias ruins → MVD e redução de expectativa (Priority: P1)
 
-Quando o usuário está em dificuldade extrema (múltiplas falhas, energia muito baixa, check-in não respondido por muito tempo), o sistema oferece o **MVD** como última alternativa para manter a identidade do hábito vivo sem exigir esforço significativo. O MVD é um conjunto pequeno de ações sustentáveis mesmo em dia ruim (PRD §5.1) e pode ser oferecido independentemente do Plano A/B/C.
+**Why this priority**: Previne “uma semana perdida” e protege segurança psicológica (RNF2/RNF3).
 
-**Why this priority**: MVD é a rede de segurança que evita que dias ruins virem semanas ruins. Mantém consistência mesmo em condições adversas. Fundamental para RNF2 e RNF3.
-
-**Independent Test**: Simular condições de dificuldade extrema e verificar se sistema oferece MVD apropriado.
+**Independent Test**: Simular 3 dias seguidos com baixa energia / baixa execução; validar redução de escopo e oferta de MVD sem culpa.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: MVD oferecido após 3+ falhas consecutivas
-   - **Given** usuário não executou tarefas por vários dias consecutivos **[NEEDS CLARIFICATION: qual janela caracteriza “sequência de falhas”?]**
-   - **When** sistema detecta padrão de falhas consecutivas
-   - **Then** sistema envia mensagem empática: "Vejo que você está passando por uma fase difícil. Vamos manter o essencial? Proponho o MVD de hoje: [lista de ações mínimas, ~10 min total]"
-   - **And** sistema não pressiona por execução completa, apenas oferece
-   - **And** se usuário executar MVD, sistema celebra como vitória e não penaliza dias anteriores
+1. **Scenario**: 3 dias seguidos de baixa execução → foco em MVD
+   - **Given** houve 3 dias recentes com execução muito baixa (ou apenas MVD)
+   - **When** chega um novo dia
+   - **Then** o sistema sugere começar direto pelo MVD e evita planos ambiciosos até a tendência melhorar
 
-2. **Scenario**: MVD automático quando energia reportada ≤3
-   - **Given** usuário respondeu check-in com energia ≤3
-   - **When** sistema processa check-in
-   - **Then** sistema oferece diretamente MVD sem apresentar Plano A/B
-   - **And** mensagem: "Energia baixa detectada. Vamos com o mínimo essencial hoje?"
-   - **And** MVD contém apenas ações de 2-5 minutos por meta ativa
-
-3. **Scenario**: MVD como alternativa quando usuário rejeita Plano B/C
-   - **Given** sistema ofereceu Plano B e usuário respondeu "muito difícil" ou "não consigo hoje"
-   - **When** sistema recebe rejeição
-   - **Then** sistema oferece MVD imediatamente: "Sem problemas. Que tal apenas [ação mínima única]? Só 5 minutos."
-   - **And** se usuário aceitar MVD, sistema marca como sucesso e não registra como falha
+2. **Scenario**: Execução parcial é celebrada e não vira bronca
+   - **Given** o usuário fez parte do dia (ex.: só input, sem speaking)
+   - **When** o sistema sumariza o dia
+   - **Then** reconhece a execução parcial, oferece um próximo passo mínimo opcional e não registra como “falha completa”
 
 ---
 
-### Edge Cases *(mandatory)*
+### User Story 5 — Ausência prolongada → pausa proativa e retomada simples (Priority: P2)
 
-- **Usuário some completamente (sem resposta por ausência prolongada)**: Sistema envia 1 mensagem final oferecendo MVD e perguntando se está tudo bem. Se não houver resposta após novo período prolongado **[NEEDS CLARIFICATION: qual política/intervalos?]**, sistema pausa lembretes automáticos e aguarda retorno do usuário. Não penaliza consistência durante ausência.
+**Why this priority**: Respeito e anti-spam; o usuário não deve ser perseguido.
 
-- **Usuário responde mas não executa (ciclo de promessas não cumpridas)**: Após repetidos ciclos de "vou fazer" sem execução **[NEEDS CLARIFICATION: quando o sistema considera que virou padrão?]**, sistema reduz expectativa automaticamente e oferece apenas MVD por um curto período, sem pressionar por planos maiores.
+**Independent Test**: Simular 7 dias sem mensagens do usuário; validar 1 última mensagem e depois silêncio até retorno.
 
-- **Múltiplos lembretes de tarefas diferentes no mesmo horário**: Sistema consolida todos os lembretes em 1 mensagem única para evitar spam, respeitando limite de frequência por tarefa individual.
+**Acceptance Scenarios**:
 
-- **Usuário executa parcialmente (ex.: fez input mas não speaking)**: Sistema celebra a parte executada, oferece completar a parte faltante de forma simplificada, mas não exige. Se usuário não completar, sistema marca como "parcial" e não conta como falha completa.
+1. **Scenario**: Pausar nudges após 7 dias sem interação
+   - **Given** o usuário está ausente há 7 dias
+   - **When** o sistema alcança o limiar de ausência prolongada
+   - **Then** envia 1 mensagem final curta (“quando voltar, eu te ajudo a retomar com o mínimo”) e pausa proatividade até o usuário responder
 
-- **Horário de sono configurado incorretamente ou muda**: Sistema permite ajuste de janela de sono a qualquer momento. Lembretes respeitam janela atual, não histórica.
+## Edge Cases *(mandatory)*
 
-- **Energia/tempo reportados inconsistentes (ex.: energia 2 mas tempo 60min)**: Sistema prioriza energia sobre tempo para escolher plano. Se inconsistência for extrema, sistema pede confirmação: "Você reportou energia 2 mas tempo 60min. Está se sentindo bem mas sem tempo, ou vice-versa?"
-
-- **Tarefa executada mas evidência inválida/ausente**: Sistema pede reenvio de evidência uma vez. Se não receber dentro de um prazo configurável, oferece alternativa simplificada que não requer evidência complexa (ex.: recall verbal em vez de gravação). **[NEEDS CLARIFICATION: qual prazo?]**
+- **Energia/tempo inconsistentes** (ex.: energia 2, tempo 60): priorizar energia e oferecer mínimo; opcionalmente pedir 1 confirmação curta.
+- **Usuário diz “fiz” sem evidência em tarefas com gate**: tratar via `SPEC-003` (não concluir), e aqui apenas oferecer o menor passo para evidenciar (sem insistir repetidamente no dia).
+- **Usuário pede “não me lembre”**: reduzir intensidade (modo silencioso) e registrar preferência; nudges passam a ser apenas check-in (ou nenhum), conforme escolha do usuário (alinhado a RNF1/RNF3 e `SPEC-015`).
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-
-- **FR-001**: System MUST detectar ausência de resposta ao check-in após um timeout configurável **[NEEDS CLARIFICATION: timeout padrão ideal?]** e oferecer automaticamente Plano B ou C baseado em histórico e padrões observados.
-
-- **FR-002**: System MUST detectar não execução de tarefas após prazo esperado (configurável) **[NEEDS CLARIFICATION: prazo padrão ideal por tipo de tarefa?]** e oferecer alternativas progressivamente mais simples (tarefa original → simplificada → mínima → MVD).
-
-- **FR-003**: System MUST enviar lembretes contextuais respeitando limites configuráveis: máximo de lembretes por tarefa **[NEEDS CLARIFICATION: limite ideal?]**, intervalo mínimo entre lembretes da mesma tarefa **[NEEDS CLARIFICATION: intervalo ideal?]**, não enviar durante horário de sono configurado, não enviar se usuário já está executando.
-
-- **FR-004**: System MUST consolidar múltiplos lembretes pendentes em 1 mensagem quando possível para evitar spam.
-
-- **FR-005**: System MUST oferecer MVD automaticamente quando detectar condições de dificuldade extrema (energia ≤3, 3+ falhas consecutivas, rejeição de Planos B/C).
-
-- **FR-006**: System MUST permitir que usuário ajuste timeout de check-in, limites de lembretes e prazos esperados de execução (com limites razoáveis) **[NEEDS CLARIFICATION: quais limites?]**.
-
-- **FR-007**: System MUST permitir que usuário configure janela de sono (horário início/fim) para respeitar em lembretes.
-
-- **FR-008**: System MUST registrar exceções (dias ruins, MVD executado, tarefas não executadas) sem penalizar consistência quando apropriado (ex.: MVD conta como sucesso, não como falha).
-
-- **FR-009**: System MUST pausar lembretes automáticos após ausência prolongada e aguardar retorno explícito do usuário **[NEEDS CLARIFICATION: qual política/intervalos?]**.
-
-- **FR-010**: System MUST celebrar execuções parciais e oferecer completar de forma simplificada, mas não exigir conclusão.
+- **FR-001**: System MUST ter budgets anti-spam (diário e por tarefa) e consolidar lembretes quando houver múltiplas pendências.
+- **FR-002**: System MUST respeitar quiet hours (configurável) e não enviar nudges durante essa janela.
+- **FR-003**: System MUST detectar “check-in sem resposta” e oferecer automaticamente Plano B após 90 min; e Plano C/MVD após 6h (respeitando budget).
+- **FR-004**: System MUST detectar “tarefa sem início” e enviar 1 lembrete após 4h; e oferecer simplificação/MVD após mais 6h sem avanço (respeitando budgets).
+- **FR-005**: System MUST oferecer degradação progressiva A→B→C→MVD sem exigir decisões complexas (no máximo 1 pergunta curta por vez).
+- **FR-006**: System MUST reduzir expectativa e sugerir MVD quando houver sequência recente de dias ruins (default: 3 dias).
+- **FR-007**: System MUST pausar nudges proativos após ausência prolongada (default: 7 dias) até retorno do usuário.
+- **FR-008**: System MUST aplicar privacidade por padrão nos nudges (mensagens neutras; sem conteúdo sensível por padrão), alinhado a `SPEC-015`.
 
 ### Non-Functional Requirements
-
-- **NFR-001**: System MUST manter simplicidade na interação: mensagens curtas, objetivas, sem jargão técnico (PRD RNF1).
-
-- **NFR-002**: System MUST ser robusto a dias ruins: sempre existir um plano mínimo (MVD) que mantém identidade/hábito vivo mesmo em condições adversas (PRD RNF2).
-
-- **NFR-003**: System MUST manter segurança psicológica: linguagem empática, não punitiva, foco em processo e pequenas vitórias, não em culpa ou falhas (PRD RNF3).
-
-- **NFR-004**: System MUST evitar spam: consolidar lembretes, respeitar limites de frequência, não enviar durante sono ou execução ativa.
-
-- **NFR-005**: System MUST ser adaptativo: ajustar oferta de planos baseado em padrões observados (energia baixa recorrente → oferecer MVD diretamente).
+- **NFR-001**: System MUST manter simplicidade: mensagens curtas, escolhas pequenas, sem jargão (PRD RNF1).
+- **NFR-002**: System MUST ser robusto a dias ruins: sempre existir um mínimo viável (PRD RNF2).
+- **NFR-003**: System MUST manter segurança psicológica: tom não punitivo, foco em processo e pequenas vitórias (PRD RNF3).
+- **NFR-004**: System MUST evitar spam como requisito de qualidade (implícito em RNF1) com budgets e consolidação.
 
 ### Key Entities *(include if feature involves data)*
-
-- **Check-in**: Representa a troca de mensagens do check-in diário. Atributos: data/hora de envio, data/hora de resposta (se houver), respostas (tempo disponível, energia 0–10, humor/estresse 0–10), janela de resposta configurada, status (pendente/respondido/expirado).
-
-- **Tarefa**: Representa uma ação a ser executada pelo usuário. Atributos: identificador, tipo (inglês/java/sono/saúde/etc.), plano de origem (A/B/C ou MVD), esforço/complexidade percebida, janela de execução esperada (configurável), status (pendente/em progresso/executada/substituída/cancelada), contagem de lembretes enviados, data/hora do último lembrete.
-
-- **Lembrete**: Representa uma mensagem de lembrete enviada ao usuário sobre tarefa pendente. Atributos: identificador, referência à tarefa, tipo (inicial/consolidado/final), data/hora de envio, conteúdo, contexto aplicado (respeitou janela de sono, usuário estava executando, consolidação com outras tarefas).
-
-- **MVD (Mínimo Viável Diário)**: Representa o conjunto mínimo de ações para manter o hábito vivo em dia ruim. Atributos: identificador, metas ativas cobertas, ações mínimas propostas (curtas e sustentáveis), data/hora de oferta, data/hora de execução (se houver), status (oferecido/aceito/executado/rejeitado). **[NEEDS CLARIFICATION: definição exata do conteúdo do MVD por meta?]**
-
-- **Configuração de Lembretes**: Representa preferências do usuário para lembretes. Atributos: timeout de resposta ao check-in, prazo esperado de execução por tipo de tarefa, janela de sono (início/fim), máximo de lembretes por tarefa, intervalo mínimo entre lembretes.
-
-- **Padrão de Dificuldade**: Representa a detecção de condições adversas. Atributos: tipo (energia baixa recorrente/falhas consecutivas/rejeição de planos), contagem, data/hora da detecção, resposta sugerida (ex.: oferecer MVD, oferecer Plano C, pausar lembretes).
+- **NudgePolicy**: budgets; quiet hours; intensidade (baixo/médio/alto); status (ativo/pausado).
+- **ProactiveMessageLog**: data/hora; tipo (check-in/lembrete/ajuste/MVD/pausa); alvo (tarefa/dia); contado_no_budget (sim/não).
+- **DegradationEvent**: data; gatilho (timeout/sem início/seq dias ruins); resultado (Plano B/C/MVD); aceito?; nota curta.
+- **AbsenceState**: dias_sem_interação; pausado?; última mensagem final enviada?
 
 ## Acceptance Criteria *(mandatory)*
-
-1. **AC-001**: Quando check-in não é respondido dentro do timeout configurável, sistema oferece automaticamente Plano B ou C sem exigir ação do usuário.
-
-2. **AC-002**: Quando tarefa não é executada dentro do prazo configurável, sistema oferece alternativa simplificada. Se não houver resposta dentro de um período configurável, oferece versão mínima ou MVD.
-
-3. **AC-003**: Lembretes são enviados respeitando: máximo por tarefa (configurável), intervalo mínimo (configurável), não durante sono, não durante execução ativa.
-
-4. **AC-004**: Múltiplos lembretes pendentes são consolidados em 1 mensagem quando possível.
-
-5. **AC-005**: MVD é oferecido automaticamente quando energia ≤3, 3+ falhas consecutivas, ou rejeição de Planos B/C.
-
-6. **AC-006**: Execuções parciais são celebradas e sistema oferece completar de forma simplificada, mas não exige.
-
-7. **AC-007**: Exceções (MVD, dias ruins) são registradas sem penalizar consistência quando apropriado.
-
-8. **AC-008**: Após ausência prolongada (conforme política definida), sistema pausa lembretes automáticos e aguarda retorno explícito. **[NEEDS CLARIFICATION: qual política?]**
-
-9. **AC-009**: Usuário pode configurar timeout de check-in, prazo de execução, e janela de sono com limites razoáveis.
-
-10. **AC-010**: Mensagens mantêm tom empático, não punitivo, focado em processo e pequenas vitórias.
+- O sistema nunca excede o budget diário de nudges proativos e consolida mensagens quando há múltiplas pendências.
+- O sistema respeita quiet hours e não interrompe execução em progresso.
+- Check-in sem resposta degrada automaticamente para Plano B e depois C/MVD com defaults claros.
+- Tarefas pendentes recebem no máximo 2 lembretes/dia e depois viram oferta de simplificação/MVD.
+- Após 7 dias sem interação, o sistema pausa proatividade até retorno do usuário.
+- Tom é não punitivo e reforça consistência mínima como sucesso.
 
 ## Business Objectives *(mandatory)*
-
-Esta SPEC suporta diretamente os seguintes objetivos do PRD:
-
-- **Consistência**: Mantém usuário em movimento mesmo em dias ruins através de planos alternativos e MVD, evitando que uma falha vire uma semana ruim.
-
-- **Adaptação contínua**: Sistema detecta padrões de dificuldade e ajusta oferta automaticamente (ex.: energia baixa recorrente → MVD direto).
-
-- **Carga cognitiva mínima**: Lembretes consolidados, ofertas automáticas de planos alternativos, e MVD reduzem necessidade de decisão complexa em momentos de baixa energia.
-
-- **Segurança psicológica**: Linguagem empática, celebração de execuções parciais, registro de exceções sem culpa, e foco em processo (não em falhas) mantêm usuário engajado sem gerar frustração ou autocrítica.
-
-- **Robustez a dias ruins**: Sempre existe um plano mínimo (MVD) que mantém identidade do hábito vivo, cumprindo RNF2 do PRD.
-
-- **Simplicidade**: Mensagens curtas, consolidação de lembretes, e ofertas automáticas reduzem fricção e complexidade da interação.
+- Proteger consistência em dias ruins sem burnout (PRD §13; RNF2).
+- Reduzir carga cognitiva: o sistema toma a iniciativa com opções simples (RNF1).
+- Evitar spam e sustentar confiança/aderência (RNF1/RNF3).
+- Manter privacidade por padrão em mensagens e controles (`SPEC-015`).
 
 ## Error Handling *(mandatory)*
-
-- **Check-in ausente/ambiguidade**: Sistema aplica um timeout configurável e oferece Plano B automaticamente quando esse tempo expira. **[NEEDS CLARIFICATION: timeout padrão ideal?]** Se o check-in chegar após a oferta automática, sistema prioriza o check-in real e recalibra o plano do dia.
-
-- **Tarefa não executada sem evidência clara**: Sistema assume não execução após prazo esperado e oferece alternativa. Se usuário contestar ("eu fiz mas não marquei"), sistema aceita contestação e pede evidência mínima ou marca como executada com nota.
-
-- **Usuário some completamente (ausência prolongada)**: Sistema envia 1 mensagem final oferecendo MVD e perguntando se está tudo bem. Se não houver resposta após novo período prolongado, sistema pausa lembretes automáticos e aguarda retorno explícito. **[NEEDS CLARIFICATION: qual política/intervalos?]** Não penaliza consistência durante ausência.
-
-- **Sobrecarga de lembretes (múltiplas tarefas pendentes)**: Sistema consolida lembretes em 1 mensagem única. Respeita limites configuráveis de lembretes por tarefa e de intervalo mínimo entre lembretes. **[NEEDS CLARIFICATION: limites/intervalos padrão?]**
-
-- **Configuração inválida (timeout muito curto/longo, janela de sono inconsistente)**: Sistema valida limites razoáveis para evitar spam e frustração e pede ajuste quando a configuração for inválida. **[NEEDS CLARIFICATION: quais limites e defaults?]**
-
-- **Energia/tempo reportados inconsistentes**: Sistema prioriza energia sobre tempo para escolher plano. Se inconsistência for extrema (ex.: energia 2 mas tempo 60min), pede confirmação: "Você reportou energia 2 mas tempo 60min. Está se sentindo bem mas sem tempo, ou vice-versa?"
-
-- **Evidência inválida ou ausente após execução parcial**: Sistema celebra parte executada, pede evidência da parte faltante uma vez. Se não receber dentro de um prazo configurável, oferece alternativa simplificada que não requer evidência complexa (ex.: recall verbal em vez de gravação). **[NEEDS CLARIFICATION: qual prazo?]**
-
-- **Ciclo de promessas não cumpridas (usuário diz "vou fazer" mas não executa)**: Após padrão de promessas não cumpridas ser detectado, sistema reduz expectativa e oferece apenas MVD por um período curto, sem pressionar por planos maiores. **[NEEDS CLARIFICATION: qual regra/limiar e por quanto tempo reduzir a expectativa?]**
-
-- **Horário de sono muda ou configuração incorreta**: Sistema permite ajuste a qualquer momento. Lembretes respeitam a janela atual. Se usuário reportar que recebeu lembrete durante sono, sistema sugere revisar a janela de sono e pede confirmação.
+- **Configurações inválidas** (quiet hours incoerentes / budgets extremos): aplicar defaults seguros e pedir ajuste com 1 pergunta curta.
+- **Contestação do usuário** (“eu fiz”): aceitar como relato, mas se for tarefa com gate, pedir evidência mínima conforme `SPEC-003` (sem insistência repetida).
+- **Falha de entrega de mensagem**: registrar tentativa e não “compensar” com spam; reavaliar no próximo ciclo.
 
 ## Success Criteria *(mandatory)*
-
 ### Measurable Outcomes
-
-- **SC-001**: Taxa de recuperação em dias ruins: % de dias em que check-in não foi respondido inicialmente e ainda assim ocorre execução de Plano B/C ou MVD (medido semanalmente). **[NEEDS CLARIFICATION: meta/threshold desejado?]**
-
-- **SC-002**: Abandono após sequência de dias ruins: % de usuários que param de usar após 3+ dias ruins consecutivos (medido mensalmente). **[NEEDS CLARIFICATION: meta/threshold desejado?]**
-
-- **SC-003**: Efetividade de lembretes: % de tarefas com lembrete enviado que são executadas dentro de um intervalo definido após o lembrete (medido semanalmente). **[NEEDS CLARIFICATION: qual intervalo e meta?]**
-
-- **SC-004**: Adoção de MVD: % dos MVDs oferecidos que são aceitos e executados (medido semanalmente). **[NEEDS CLARIFICATION: meta/threshold desejado?]**
-
-- **SC-005**: Percepção de spam: % de usuários que reportam lembretes como "intrusivos" ou "spam" (medido mensalmente via feedback opcional). **[NEEDS CLARIFICATION: meta/threshold desejado?]**
-
-- **SC-006**: Diferença de consistência entre dias normais e dias ruins: comparar consistência em dias com energia baixa vs dias com energia normal (medido semanalmente). **[NEEDS CLARIFICATION: definição de corte de energia e meta/threshold?]**
-
-- **SC-007**: Latência entre expiração do check-in e oferta automática de Plano B/C (medido como tempo médio). **[NEEDS CLARIFICATION: meta/threshold desejado?]**
-
-- **SC-008**: Taxa de follow-up em execuções parciais: % de execuções parciais em que o sistema oferece completar de forma simplificada e o usuário tenta completar (aceita ou rejeita explicitamente) (medido semanalmente). **[NEEDS CLARIFICATION: meta/threshold desejado?]**
+- **SC-001**: Aumento de dias com execução mínima (Plano C/MVD) em semanas de baixa energia.
+- **SC-002**: Redução de abandono após sequências de dias ruins (ex.: após 3 dias).
+- **SC-003**: Baixa taxa de reclamação de “spam” (proxy: usuário reduz intensidade/pausa nudges com baixa frequência).
+- **SC-004**: Boa recuperação: dias com check-in não respondido ainda resultam em algum passo executado (Plano B/C/MVD).

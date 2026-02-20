@@ -1,189 +1,208 @@
 # Feature Specification: Inglês Diário — Input + Output + Retrieval (rubrica + erros recorrentes)
 
-**Created**: 2026-02-17  
-**PRD Base**: §8.1, §§5.3–5.4, §9.1, §10 (R2, R3), §11 (RNF1–RNF4), §14
+**Created**: 2026-02-19  
+**PRD Base**: §8.1, §5.3, §5.4, §5.2, §9.1, §14, §10 (R2, R3, R6), §11 (RNF1–RNF4)
 
 ## Caso de uso *(mandatory)*
 
-O usuário quer progredir em inglês com ênfase em **speaking** e **comprehensible input**, mas tende a cair em “falso progresso” (ex.: consumir conteúdo sem entender, ou “treinar speaking” sem evidência). Esta feature define um **loop diário** (Telegram-first como UX conversacional) que:
+O usuário quer melhorar inglês com foco em **speaking** e **comprehensible input**, com progresso mensurável e evitando “falso progresso”. Esta feature define um loop diário Telegram-first que:
+- guia **input compreensível** (10–30 min) com checagem simples de compreensão,
+- guia **output** (speaking) curto e avaliado por **rubrica**,
+- inclui **retrieval** (3–7 min) para consolidar itens sem consulta,
+- registra erros recorrentes e aciona reforços quando necessário,
+- e aplica **quality gates**: tarefa só conta como concluída com evidência mínima adequada (`SPEC-003`).
 
-- Mantém **consistência** em dias bons e ruins (PRD §9.1; RNF2).
-- Exige **evidência mínima proporcional** para contar como “feito” (PRD §5.4; R2) e reduzir “falso progresso” (PRD R3).
-- Registra **qualidade** de speaking por rubrica e acompanha **erros recorrentes** como alvos de reforço (PRD §8.1).
-- Mantém **baixa fricção**, com instruções objetivas e decisões mínimas (PRD §5.3; R6; RNF1).
-- Dá feedback com **segurança psicológica** (firme, não punitivo) (PRD RNF3).
-- Opera com **privacidade por padrão**, coletando o mínimo e explicando o que é guardado e por quê (PRD RNF4).
+O loop deve funcionar em dias bons e ruins (Plano A/B/C), mantendo baixa fricção, segurança psicológica e privacidade por padrão (`SPEC-015`).
 
-O loop diário é composto por três blocos, com durações de referência do PRD:
+## Scope & Non-goals *(recommended)*
 
-- **Input compreensível** (10–30 min) + checagem de compreensão (PRD §8.1).
-- **Output guiado** (5–15 min) com evidência de produção (PRD §8.1).
-- **Retrieval** (3–7 min) sem consulta para consolidar vocabulário/padrões (PRD §8.1).
+**In scope (MVP slice)**:
+- Um fluxo diário com 3 blocos (input, output, retrieval) e versões mínimas para dia ruim.
+- Rubrica de output (speaking) e registro mínimo de evidência.
+- Registro de erros recorrentes e alvos (para reforço / revisão semanal).
+- Regras de conclusão (gate) alinhadas a `SPEC-003`.
 
-## Instruções para o agente que vai escrever esta SPEC
+**Non-goals (agora)**:
+- Não escolher plataforma específica de conteúdo, professor, app, curso.
+- Não definir STT, scoring automático, modelo de pronúncia; a rubrica pode ser autoavaliada inicialmente.
+- Não desenhar pipeline técnico de áudio/armazenamento.
 
-- Use `specs/SPEC-GUIDE.md`.
-- Alinhar “quality gates/evidência mínima” com a lógica definida em `SPEC-003` (sem depender de implementação).
-- Não prescrever conteúdos específicos (canais/apps); foque no comportamento e critérios.
+## Definições *(recommended)*
+
+- **Input compreensível**: conteúdo levemente acima do nível, com compreensão global.
+- **Output (speaking)**: gravação curta (ou alternativa equivalente se definida) para praticar produção.
+- **Retrieval**: recall ativo de itens (palavras/expressões/padrões) sem consultar.
+- **Rubrica de speaking (default PRD)**: clareza (0–2), fluidez (0–2), correção aceitável (0–2), vocabulário/variedade (0–2). Total 0–8.
+- **Erro recorrente**: erro/padrão que aparece com frequência suficiente para virar alvo (limiar consistente com `SPEC-016`).
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Completar inglês diário com evidência mínima (Priority: P1)
+### User Story 1 — Completar loop diário de inglês em dia normal com evidência mínima (Priority: P1)
 
-O usuário quer concluir um treino diário de inglês que **conte como progresso real**: input com checagem de compreensão, output com evidência e rubrica, e retrieval curto “sem olhar”, com caminho claro mesmo em dia ruim.
+O usuário quer fazer inglês todos os dias com um loop que realmente melhora speaking e compreensão, com prova mínima de que aconteceu.
 
-**Why this priority**: É o “MVP slice” que materializa o valor do produto para inglês (PRD §14) e implementa o núcleo de qualidade/evidência (PRD §5.4; R2, R3), com robustez (RNF2) e baixa fricção (RNF1).
+**Why this priority**: É parte do MVP (PRD §14) e concretiza qualidade > quantidade (PRD §5.4; R2).
 
-**Independent Test**: Simular uma sessão diária completa (Planos A/B/C) e verificar se o sistema: (a) coleta evidências mínimas, (b) aplica gates, (c) registra rubrica e (d) registra/atualiza erros recorrentes, sem depender de revisão semanal.
+**Independent Test**:
+- Simular um dia “bom” com tempo/energia.
+- Verificar que: input tem checagem, output tem rubrica, retrieval é registrado, gate aplicado e conclusão registrada.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: Plano A — completar o loop com evidência mínima
-   - **Given** usuário informa tempo ≥ 30 min e energia adequada (PRD §9.1)
-   - **When** inicia o inglês diário
-   - **Then** o sistema orienta e coleta evidências para input + output + retrieval, e só considera “feito” quando os gates mínimos forem cumpridos (PRD §5.4; R2)
+1. **Scenario**: Input concluído com checagem de compreensão
+   - **Given** existe uma tarefa de inglês do dia com bloco de input
+   - **When** o usuário completa o input
+   - **Then** o sistema solicita 3 perguntas curtas de compreensão (ou equivalente) e registra respostas mínimas
+   - **And** só conta input como concluído se a checagem mínima for satisfeita (ver gate em `SPEC-003`)
 
-2. **Scenario**: Input — checagem de compreensão com 3 perguntas
-   - **Given** usuário escolheu um conteúdo de input compreensível (PRD §8.1)
-   - **When** termina o bloco de input
-   - **Then** responde a **3 perguntas** de compreensão sobre o conteúdo (PRD §8.1) e o sistema registra o resultado (acertos/erros)
+2. **Scenario**: Output (speaking) com rubrica preenchida
+   - **Given** existe um bloco de output no dia
+   - **When** o usuário envia speaking (ex.: gravação curta) e preenche rubrica
+   - **Then** o sistema registra rubrica e marca o bloco como concluído apenas se evidência mínima estiver válida
 
-3. **Scenario**: Output — speaking com rubrica e autoavaliação rápida
-   - **Given** usuário tem 5–15 min para output (PRD §8.1)
-   - **When** produz um output (ex.: monólogo curto 1–3 min) e envia evidência de que produziu
-   - **Then** o sistema registra a rubrica de autoavaliação com as dimensões do PRD (clareza/fluidez/correção aceitável/vocabulário-variedade; 0–2 por dimensão) (PRD §8.1)
-
-4. **Scenario**: Retrieval — recall sem consulta
-   - **Given** usuário completou input e/ou output no dia
-   - **When** inicia o bloco de retrieval
-   - **Then** o usuário faz recall de **5–10 itens** (expressões/padrões) **sem consultar** (PRD §8.1) e o sistema registra se foi concluído e a percepção de dificuldade (ex.: fácil/médio/difícil)
-
-5. **Scenario**: Eros recorrentes — registrar e escolher 1 “erro do dia”
-   - **Given** usuário terminou o output e percebeu 1–3 erros que se repetem
-   - **When** registra “erros recorrentes” do dia
-   - **Then** o sistema adiciona/atualiza a lista de erros recorrentes e marca pelo menos 1 como foco imediato (PRD §8.1; R3)
-
-6. **Scenario**: Plano C — dia ruim com versão mínima que ainda gera evidência
-   - **Given** usuário informa pouco tempo e energia baixa (PRD §9.1; RNF2)
-   - **When** inicia o inglês diário
-   - **Then** o sistema oferece um Plano C (MVD) com passos mínimos e evidência proporcional (ex.: output muito curto + rubrica rápida; ou input curto + checagem mínima), sem culpar o usuário (PRD RNF3) e mantendo a interação curta (PRD RNF1)
+3. **Scenario**: Retrieval curto registrado
+   - **Given** o usuário completou (ou está completando) o loop do dia
+   - **When** o sistema solicita retrieval de 5–10 itens
+   - **Then** o usuário responde sem consulta e o sistema registra desempenho (ok / baixo) e itens-alvo
 
 ---
 
-### User Story 2 - Selecionar “alvo da semana” e reforçar erros recorrentes (Priority: P2)
+### User Story 2 — Dia ruim: manter consistência com versão mínima sem “passar pano” (Priority: P1)
 
-O usuário quer transformar erros recorrentes em **ações claras de reforço**, para reduzir repetição do mesmo padrão ao longo das semanas.
+O usuário tem pouco tempo/energia e quer um mínimo viável que preserve consistência e progresso real.
 
-**Why this priority**: Conecta diretamente ao objetivo de reduzir “falso progresso” e reagir a padrões de erro (PRD R3; §8.1), mantendo o sistema orientado por evidência e melhoria contínua (PRD §5.4).
+**Why this priority**: RNF2 (dias ruins) é requisito central do produto; sem isso o hábito morre.
 
-**Independent Test**: Com uma lista de erros recorrentes existente, executar o fluxo de seleção de “alvo da semana” e verificar que o sistema (a) define 1 alvo, (b) pede evidência de prática relacionada e (c) registra tendência do erro ao longo da semana.
+**Independent Test**:
+- Simular dia com pouco tempo/energia.
+- Validar que existe versão mínima para inglês, com gate proporcional e sem aceitar conclusão vazia.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: Escolher 1 alvo semanal baseado em recorrência
-   - **Given** existe uma lista de erros recorrentes com contagem/tendência (PRD §8.1)
-   - **When** o usuário inicia a semana ou solicita “definir alvo”
-   - **Then** o sistema ajuda a escolher **1 erro-alvo** para a semana e explica por que (ex.: “erro repetiu X vezes”) (PRD §9.2)
+1. **Scenario**: Plano C de inglês em 5–15 min
+   - **Given** o usuário reporta pouco tempo/energia
+   - **When** pede “mínimo viável de inglês”
+   - **Then** o sistema oferece uma versão curta (ex.: input 5–10 min + 1 pergunta de compreensão + 1 output de 30–60s OU alternativa mínima definida + retrieval de 3 itens)
 
-2. **Scenario**: Reforço do alvo — evidência mínima
-   - **Given** existe um erro-alvo da semana definido
-   - **When** o usuário conclui o output diário
-   - **Then** o sistema solicita um micro-reforço ligado ao alvo (ex.: 2–3 frases/mini-treino) e registra que houve tentativa (PRD R3; §8.1)
+2. **Scenario**: Usuário não pode fazer áudio (ambiente/privacidade)
+   - **Given** o usuário está sem privacidade para gravar áudio
+   - **When** o output do dia exige speaking
+   - **Then** o sistema oferece alternativa equivalente **se** definida pela política de evidência (`SPEC-003` + `SPEC-015`)
+   - **Else** registra bloqueio/pendência de forma não punitiva e oferece mínimo viável do dia que ainda seja observável
 
 ---
 
-### User Story 3 - Ajustar dificuldade do input pelo desempenho de compreensão (Priority: P3)
+### User Story 3 — Registrar erros recorrentes e definir “alvo da semana” (Priority: P2)
 
-O usuário quer manter input “no nível certo”: compreensível o suficiente para gerar aprendizado, mas desafiador o bastante para progredir.
+O usuário quer que o sistema identifique padrões de erro e transforme em foco prático.
 
-**Why this priority**: Sustenta o princípio de “evidência > intuição” e melhora a qualidade do input ao longo do tempo (PRD §3; §8.1).
+**Why this priority**: Implementa R3 (falso progresso) e alimenta revisão semanal (PRD §9.2).
 
-**Independent Test**: Rodar 3 sessões com resultados de compreensão (alta vs baixa) e verificar que o sistema recomenda ajuste de dificuldade/forma do input, sem prescrever fontes específicas.
+**Independent Test**:
+- Simular 5 dias com o mesmo erro aparecendo.
+- Validar que o erro vira recorrente e fica elegível para “alvo da semana”.
 
 **Acceptance Scenarios**:
 
-1. **Scenario**: Compreensão repetidamente baixa aciona ajuste de abordagem
-   - **Given** o usuário errou repetidamente a checagem de compreensão em dias recentes (PRD §8.1)
-   - **When** inicia o próximo bloco de input
-   - **Then** o sistema recomenda reduzir dificuldade (ex.: tema mais familiar, duração menor, mais contexto) e reforça que isso é ajuste, não falha (PRD RNF3)
+1. **Scenario**: Erro recorrente registrado após speaking
+   - **Given** o usuário fez output e percebe um erro
+   - **When** registra “erro principal do dia”
+   - **Then** o sistema adiciona ao log de erros e incrementa recorrência quando aplicável
 
-### Edge Cases *(mandatory)*
+2. **Scenario**: Alvo da semana sugerido
+   - **Given** existem erros recorrentes ativos na semana
+   - **When** chega a revisão semanal (`SPEC-007`) ou o usuário pede foco
+   - **Then** o sistema sugere 1 alvo de inglês (erro/padrão) com um reforço simples para a semana
 
-- What happens when o usuário **não pode enviar áudio** por privacidade/ambiente/barulho? **[NEEDS CLARIFICATION]**: a evidência alternativa aceitável conta como “output de speaking” ou deve ser tratada como “output alternativo” (não equivalente)?
-- How does system handle **input com compreensão consistentemente baixa** (ex.: < 2/3 acertos por vários dias)? Deve ajustar dificuldade, sugerir duração menor, ou pausar input e focar em vocabulário base? (PRD §8.1) **[NEEDS CLARIFICATION]**: política de “quando ajustar” (quantos dias/qual limiar).
-- What happens when o usuário tenta **marcar como feito** sem cumprir gate de evidência (PRD §5.4; `SPEC-003`)?
-- What happens when o usuário envia evidência **ilegível/inaudível** ou incompleta?
-- What happens when o usuário tem **0 tempo** e só quer “não quebrar sequência”? (RNF2) — qual é o MVD mínimo aceitável para contar como “feito”? **[NEEDS CLARIFICATION]**.
-- How does system handle quando o usuário não lembra quais foram seus “steps” do dia e pede para revisar o que fez (PRD §2: “consultar os steps do dia atual”)?
+---
+
+### User Story 4 — Transparência e privacidade ao lidar com evidências (Priority: P2)
+
+O usuário quer sentir segurança ao enviar evidências (principalmente áudio).
+
+**Why this priority**: RNF4 é requisito explícito e evidências podem ser sensíveis.
+
+**Independent Test**:
+- No momento de pedir speaking, perguntar “o que você guarda?” e ativar opt-out.
+- Verificar explicação e modo mínimo.
+
+**Acceptance Scenarios**:
+
+1. **Scenario**: Explicação curta do que é guardado
+   - **Given** o sistema pede evidência de speaking
+   - **When** o usuário pergunta “o que você guarda?”
+   - **Then** o sistema explica em 1–2 frases o mínimo guardado e oferece controle/opt-out (ver `SPEC-015`)
+
+2. **Scenario**: Opt-out de conteúdo sensível não quebra o loop
+   - **Given** o usuário ativou não guardar conteúdo sensível
+   - **When** executa o loop diário
+   - **Then** o sistema opera em modo mínimo e registra apenas o necessário (ex.: rubrica/agregados), conforme política
+
+## Edge Cases *(mandatory)*
+
+- What happens when o usuário “faz input” mas não consegue responder as perguntas?
+  - Sistema não conta como concluído; sugere reduzir dificuldade do conteúdo e oferece 1 passo mínimo de compreensão.
+- What happens when o usuário tenta marcar como feito sem rubrica/evidência?
+  - Gate falha e o sistema pede o menor próximo passo (ver `SPEC-003`).
+- What happens when o usuário repete o mesmo erro por 3+ dias?
+  - Sistema marca como recorrente e aciona reforço curto (`SPEC-009`) / backlog (`SPEC-008`).
+- What happens when o usuário quer fazer muito e está em overload?
+  - Sistema reduz para mínimo viável e reforça foco em qualidade.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST oferecer um fluxo diário de inglês com blocos **Input**, **Output** e **Retrieval** (PRD §8.1; §14).
-- **FR-002**: System MUST suportar **Planos A/B/C** para o inglês diário com base em tempo/energia informados (PRD §9.1; R1; RNF2).
-- **FR-003**: System MUST definir e aplicar **quality gates** para considerar a sessão “concluída”, alinhados a `SPEC-003` (PRD §5.4; R2).
-- **FR-004**: System MUST, no bloco de Input, exigir e registrar uma **checagem de compreensão** com **3 perguntas** e suas respostas (PRD §8.1).
-- **FR-005**: System MUST, no bloco de Output, exigir e registrar **evidência de produção** e uma **rubrica de autoavaliação** com dimensões e escala do PRD (PRD §8.1).
-- **FR-006**: System MUST, no bloco de Retrieval, guiar o usuário a fazer recall de **5–10 itens** sem consulta e registrar conclusão e percepção de dificuldade (PRD §8.1).
-- **FR-007**: System MUST permitir registrar e manter uma lista de **erros recorrentes** e associá-los a contagem/tendência (PRD §8.1; R3).
-- **FR-008**: System MUST permitir selecionar e registrar um **“alvo da semana”** (derivado de erros recorrentes) e vincular evidências de reforço a esse alvo (PRD §9.2; §8.1).
-- **FR-009**: System MUST impedir “marcar como feito” quando os gates mínimos não foram cumpridos e oferecer o caminho mais curto para gerar evidência (PRD §5.4; R2; `SPEC-003`).
-- **FR-010**: System MUST permitir ao usuário consultar um **resumo do que foi feito no dia** (steps/blocos concluídos e evidências registradas) (PRD §2; §9.1).
-- **FR-011**: System MUST registrar o mínimo necessário para medir progresso e, quando aplicável, explicar “o que é guardado e por quê” (PRD RNF4). **[NEEDS CLARIFICATION]**: quais itens (ex.: áudios) são retidos e por quanto tempo.
+- **FR-001**: System MUST suportar um bloco diário de **input** com checagem mínima de compreensão (default: 3 perguntas curtas).
+- **FR-002**: System MUST suportar um bloco diário de **output (speaking)** com evidência mínima e **rubrica** (default PRD 0–8) registrada.
+- **FR-003**: System MUST suportar **retrieval** diário (5–10 itens; versão mínima em dia ruim) e registrar desempenho de forma simples.
+- **FR-004**: System MUST aplicar Quality Gates para inglês e só contar como concluído quando evidência mínima for válida (referência: `SPEC-003`).
+- **FR-005**: System MUST oferecer versão mínima viável (Plano C) para dias ruins, mantendo progresso observável (PRD RNF2).
+- **FR-006**: System MUST permitir registrar 1 erro/aprendizado principal do dia e consolidar erros recorrentes (alinhado a `SPEC-016`).
+- **FR-007**: System MUST alimentar foco semanal (alvo de inglês) para revisão semanal (`SPEC-007`) e backlog (`SPEC-008`).
+- **FR-008**: System MUST aplicar privacidade por padrão para evidências sensíveis e permitir opt-out/modo mínimo (referência: `SPEC-015`).
 
 ### Non-Functional Requirements
 
-- **NFR-001**: System MUST manter interação curta, previsível e com baixa carga cognitiva (PRD RNF1; §5.3).
-- **NFR-002**: System MUST ser robusto a dias ruins e sempre oferecer um Plano C (MVD) que mantenha consistência sem burnout (PRD RNF2; §4).
-- **NFR-003**: System MUST fornecer feedback firme e orientado a aprendizado, sem humilhação/punição (PRD RNF3; §3).
-- **NFR-004**: System MUST operar com privacidade por padrão: coletar o mínimo e dar clareza do uso/retensão dos dados (PRD RNF4). **[NEEDS CLARIFICATION]**: política de retenção/remoção de evidências (especialmente áudio).
+- **NFR-001**: System MUST manter baixa fricção e interação curta (PRD RNF1).
+- **NFR-002**: System MUST ser robusto a dias ruins (PRD RNF2).
+- **NFR-003**: System MUST manter segurança psicológica (PRD RNF3): feedback firme, não punitivo.
+- **NFR-004**: System MUST aplicar privacidade por padrão (PRD RNF4): minimização + transparência + controle.
 
 ### Key Entities *(include if feature involves data)*
 
-- **EnglishSession**: data; plano (A/B/C); blocos concluídos (input/output/retrieval); duração por bloco; status de “concluída”; resumo do dia (PRD §9.1).
-- **ComprehensionCheck**: referência do conteúdo (descrição curta); 3 perguntas; respostas; acertos; observações de dificuldade (PRD §8.1).
-- **OutputEvidence**: tipo (speaking/shadowing/conversa/output alternativo); descrição; validade; observações (PRD §8.1; §5.4). **[NEEDS CLARIFICATION]**: o que conta como “output alternativo” quando não há áudio.
-- **SpeakingRubric**: scores por dimensão (clareza/fluidez/correção aceitável/vocabulário-variedade); escala 0–2; notas curtas (PRD §8.1).
-- **RetrievalAttempt**: itens-alvo (5–10); conclusão; percepção de dificuldade; observações (PRD §8.1).
-- **RecurringError**: descrição; categoria (opcional); exemplos; contagem; tendência; status (ativo/arquivado) (PRD §8.1; R3).
-- **WeeklyTarget**: erro-alvo da semana; justificativa; evidências de reforço associadas; resultado da semana (PRD §9.2).
+- **EnglishInputSession**: data; duração_aprox; conteúdo_descrito (alto nível); checagem_de_compreensão (respostas); status.
+- **SpeakingEvidence**: data; status (válida/inválida); sensível (sim/não); política (guardar/não guardar); referência mínima.
+- **SpeakingRubric**: data; clareza/fluidez/correção/vocabulário (0–2); total; status (completa/parcial).
+- **EnglishRetrieval**: data; itens; desempenho (ok/baixo); itens_alvo.
+- **EnglishErrorLog**: erro/padrão; contagem; último visto; status (ativo/recorrente/alvo).
 
 ## Acceptance Criteria *(mandatory)*
 
-- O sistema oferece um inglês diário com Planos A/B/C baseado em tempo/energia informados (PRD §9.1; RNF2).
-- Uma sessão diária de inglês **só conta como concluída** quando os **quality gates** mínimos forem cumpridos (PRD §5.4; R2; `SPEC-003`).
-- Input diário inclui checagem de compreensão com **3 perguntas** e registro de resultado (PRD §8.1).
-- Output diário registra evidência de produção e rubrica (dimensões e escala do PRD) quando houver speaking (PRD §8.1).
-- Retrieval diário é guiado como recall “sem olhar” de **5–10 itens** e é registrado (PRD §8.1).
-- O sistema mantém lista de erros recorrentes e permite eleger 1 alvo semanal com evidências de reforço (PRD §8.1; §9.2; R3).
-- Em dia ruim, existe um Plano C (MVD) com evidência proporcional, sem tom punitivo (PRD RNF2; RNF3).
-- O usuário consegue consultar “o que foi feito hoje” (steps) e o estado do inglês diário no dia atual (PRD §2).
+- O loop diário de inglês pode ser concluído com evidência mínima: input com checagem, output com rubrica, retrieval registrado.
+- Em dia ruim existe Plano C executável em 5–15 min, sem aceitar conclusão vazia.
+- Tarefas não contam como concluídas quando gate falha; o sistema sempre dá o menor próximo passo.
+- Erros recorrentes podem ser registrados e ficam elegíveis para alvo da semana/reforço.
+- Privacidade por padrão funciona: transparência + opt-out/modo mínimo.
 
 ## Business Objectives *(mandatory)*
 
-- **Consistência com qualidade**: aumentar dias/semana com treino real (não apenas “consumo”) (PRD §8.1; §9.1).
-- **Reduzir falso progresso**: exigir evidência mínima e reagir a padrões de erro recorrente (PRD §5.4; R2; R3).
-- **Baixa fricção**: tornar o loop executável com decisões mínimas e instruções objetivas (PRD §5.3; RNF1).
-- **Segurança psicológica**: manter o usuário em movimento com feedback firme e não punitivo (PRD RNF3).
-- **Privacidade por padrão**: coletar apenas o necessário e manter clareza sobre retenção/uso (PRD RNF4).
+- Melhorar speaking e compreensão com práticas eficazes (PRD §8.1) e evitar falso progresso via gates (PRD §5.4; R2/R3).
+- Sustentar consistência diária com baixo atrito e versões mínimas (RNF1/RNF2).
+- Manter confiança com privacidade por padrão (RNF4).
 
 ## Error Handling *(mandatory)*
 
-- **Entrada ausente/ambígua** (tempo/energia não informados): aplicar defaults mínimos e pedir 1 confirmação curta antes de sugerir Plano A/B/C (alinhado ao catálogo do `SPEC-GUIDE`) (PRD RNF1).
-- **Dia ruim / sobrecarga**: oferecer Plano C (MVD) imediatamente, reforçar que “consistência mínima” é sucesso do dia, e evitar linguagem de culpa (PRD RNF2; RNF3).
-- **Evidência ausente**: não permitir conclusão; oferecer o caminho mais curto para gerar evidência mínima (PRD §5.4; R2; `SPEC-003`).
-- **Evidência inválida/ilegível/inaudível**: solicitar reenvio ou alternativa definida pela SPEC; registrar tentativa sem punição (PRD RNF3). **[NEEDS CLARIFICATION]**: alternativa aceitável quando áudio não é possível.
-- **Checagem de compreensão com baixo desempenho repetido**: orientar ajuste de dificuldade/duração e registrar a decisão como adaptação (não falha) (PRD §8.1; RNF3). **[NEEDS CLARIFICATION]**: limiares e janela para disparar ajuste.
-- **Tentativa de bypass (“marca como feito mesmo assim”)**: explicar o porquê do gate e oferecer uma versão mínima do gate para o dia (PRD §5.4; RNF3; `SPEC-003`).
+- **Checagem de compreensão falhou**: reduzir dificuldade e sugerir próxima peça de input mais adequada; não contar como concluído.
+- **Evidência inválida**: pedir reenvio ou alternativa equivalente quando definida.
+- **Usuário some**: permitir retomar pelo próximo passo mínimo.
+- **Ambiente sem privacidade**: operar em modo mínimo e registrar bloqueios explicitamente, sem culpa.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Atingir e manter uma meta de consistência semanal de inglês (ex.: dias/semana com sessão concluída por gates) (PRD §8.1; §9.1).
-- **SC-002**: Aumentar o volume de prática real: minutos semanais de input registrados + número de outputs com evidência (PRD §8.1).
-- **SC-003**: Melhorar a qualidade do speaking ao longo de semanas: tendência positiva na rubrica (média por dimensão) e/ou aumento de “clareza” e “fluidez” (PRD §8.1).
-- **SC-004**: Reduzir recorrência do(s) erro(s)-alvo: queda na contagem de erros recorrentes do alvo semanal ao longo de ciclos (PRD §8.1; §9.2; R3).
-- **SC-005**: Manter robustez a dias ruins: taxa de dias de baixa energia em que o usuário ainda conclui um Plano C (MVD) com evidência proporcional (PRD RNF2).
-
+- **SC-001**: Aumento de consistência semanal no inglês (dias/semana) com gates satisfeitos.
+- **SC-002**: Tendência de melhora na rubrica de speaking ao longo de semanas.
+- **SC-003**: Redução de erros recorrentes ativos após alvos/reforços.
+- **SC-004**: Em dias ruins, aumento da taxa de conclusão do mínimo viável sem abandono do hábito.
