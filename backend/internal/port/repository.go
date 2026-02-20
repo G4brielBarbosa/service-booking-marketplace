@@ -62,3 +62,21 @@ type DailyStateRepository interface {
 type TaskCatalog interface {
 	GetTasksForGoal(goalDomain domain.GoalID, planType domain.PlanType) []domain.TaskTemplate
 }
+
+// --- Quality Gates repositories (PLAN-003) ---
+
+type EvidenceRepository interface {
+	Save(ctx context.Context, evidence *domain.Evidence) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) ([]domain.Evidence, error)
+}
+
+type GateResultRepository interface {
+	Save(ctx context.Context, result *domain.GateResult) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.GateResult, error)
+	FindByUserAndDate(ctx context.Context, userID uuid.UUID, localDate string) ([]domain.GateResult, error)
+}
+
+type RubricRepository interface {
+	Save(ctx context.Context, rubric *domain.RubricScore) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.RubricScore, error)
+}
