@@ -640,3 +640,142 @@ func (s *Store) FindRubricByTaskID(ctx context.Context, taskID uuid.UUID) (*doma
 	_ = json.Unmarshal(dimsJSON, &r.Dimensions)
 	return &r, nil
 }
+
+// --- EnglishInputRepository ---
+
+func (s *Store) SaveEnglishInput(ctx context.Context, sess *domain.EnglishInputSession) error {
+	answersJSON, _ := json.Marshal(sess.ComprehensionAnswers)
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO english_input_sessions (session_id, user_id, task_id, local_date, duration_est_min, content_descriptor, comprehension_answers, status, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (session_id) DO UPDATE SET
+		     comprehension_answers = EXCLUDED.comprehension_answers,
+		     status = EXCLUDED.status`,
+		sess.SessionID, sess.UserID, sess.TaskID, sess.LocalDate,
+		sess.DurationEstMin, sess.ContentDescriptor, answersJSON, sess.Status, sess.CreatedAt)
+	return err
+}
+
+func (s *Store) FindEnglishInputByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.EnglishInputSession, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT session_id, user_id, task_id, local_date, duration_est_min, content_descriptor, comprehension_answers, status, created_at
+		 FROM english_input_sessions WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var sess domain.EnglishInputSession
+	var answersJSON []byte
+	err := row.Scan(&sess.SessionID, &sess.UserID, &sess.TaskID, &sess.LocalDate,
+		&sess.DurationEstMin, &sess.ContentDescriptor, &answersJSON, &sess.Status, &sess.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(answersJSON, &sess.ComprehensionAnswers)
+	return &sess, nil
+}
+
+// --- EnglishRetrievalRepository ---
+
+func (s *Store) SaveEnglishRetrieval(ctx context.Context, r *domain.EnglishRetrieval) error {
+	targetsJSON, _ := json.Marshal(r.Targets)
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO english_retrievals (retrieval_id, user_id, task_id, local_date, items_answered, items_total, status, targets, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (retrieval_id) DO UPDATE SET
+		     items_answered = EXCLUDED.items_answered,
+		     status = EXCLUDED.status,
+		     targets = EXCLUDED.targets`,
+		r.RetrievalID, r.UserID, r.TaskID, r.LocalDate,
+		r.ItemsAnswered, r.ItemsTotal, r.Status, targetsJSON, r.CreatedAt)
+	return err
+}
+
+func (s *Store) FindEnglishRetrievalByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.EnglishRetrieval, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT retrieval_id, user_id, task_id, local_date, items_answered, items_total, status, targets, created_at
+		 FROM english_retrievals WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var r domain.EnglishRetrieval
+	var targetsJSON []byte
+	err := row.Scan(&r.RetrievalID, &r.UserID, &r.TaskID, &r.LocalDate,
+		&r.ItemsAnswered, &r.ItemsTotal, &r.Status, &targetsJSON, &r.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(targetsJSON, &r.Targets)
+	return &r, nil
+}
+
+func (s *Store) FindEnglishRetrievalsByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishRetrieval, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT retrieval_id, user_id, task_id, local_date, items_answered, items_total, status, targets, created_at
+		 FROM english_retrievals WHERE user_id = $1 AND local_date >= $2 AND local_date <= $3
+		 ORDER BY created_at`, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.EnglishRetrieval
+	for rows.Next() {
+		var r domain.EnglishRetrieval
+		var targetsJSON []byte
+		if err := rows.Scan(&r.RetrievalID, &r.UserID, &r.TaskID, &r.LocalDate,
+			&r.ItemsAnswered, &r.ItemsTotal, &r.Status, &targetsJSON, &r.CreatedAt); err != nil {
+			return nil, err
+		}
+		_ = json.Unmarshal(targetsJSON, &r.Targets)
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+// --- EnglishErrorLogRepository ---
+
+func (s *Store) SaveEnglishErrorLog(ctx context.Context, entry *domain.EnglishErrorLogEntry) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO english_error_log (error_id, user_id, local_date, label, note_short, recurring_count_14d, is_recurring, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 ON CONFLICT (error_id) DO UPDATE SET
+		     recurring_count_14d = EXCLUDED.recurring_count_14d,
+		     is_recurring = EXCLUDED.is_recurring`,
+		entry.ErrorID, entry.UserID, entry.LocalDate, entry.Label,
+		entry.NoteShort, entry.RecurringCount14d, entry.IsRecurring, entry.CreatedAt)
+	return err
+}
+
+func (s *Store) FindEnglishErrorsByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishErrorLogEntry, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT error_id, user_id, local_date, label, note_short, recurring_count_14d, is_recurring, created_at
+		 FROM english_error_log WHERE user_id = $1 AND local_date >= $2 AND local_date <= $3
+		 ORDER BY created_at`, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.EnglishErrorLogEntry
+	for rows.Next() {
+		var e domain.EnglishErrorLogEntry
+		if err := rows.Scan(&e.ErrorID, &e.UserID, &e.LocalDate, &e.Label,
+			&e.NoteShort, &e.RecurringCount14d, &e.IsRecurring, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, e)
+	}
+	return results, nil
+}
+
+func (s *Store) CountEnglishErrorsByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM english_error_log WHERE user_id = $1 AND label = $2 AND local_date >= $3`,
+		userID, label, since)
+
+	var count int
+	err := row.Scan(&count)
+	return count, err
+}

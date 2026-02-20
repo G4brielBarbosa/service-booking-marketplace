@@ -20,21 +20,28 @@ func (c *HardcodedCatalog) GetTasksForGoal(goal GoalID, pt PlanType) []TaskTempl
 	return result
 }
 
-var speakingGateRef = "speaking_output"
+var (
+	speakingGateRef        = "speaking_output"
+	comprehensionGateRef   = "english_comprehension"
+	retrievalGateRef       = "english_retrieval"
+	comprehensionMinRef    = "english_comprehension_min"
+	retrievalMinRef        = "english_retrieval_min"
+)
 
 var catalog = map[GoalID]map[PlanType][]TaskTemplate{
 	GoalEnglish: {
 		PlanA: {
-			{Title: "Input em inglês", GoalDomain: GoalEnglish, EstimatedMin: 30, Instructions: "Assista ou leia conteúdo em inglês por 30 min", DoneCriteria: "30 min de input registrados"},
-			{Title: "Prática de speaking", GoalDomain: GoalEnglish, EstimatedMin: 15, Instructions: "Grave 1 min falando sobre o conteúdo consumido", DoneCriteria: "Áudio gravado", GateProfile: &speakingGateRef},
-			{Title: "Retrieval rápido", GoalDomain: GoalEnglish, EstimatedMin: 5, Instructions: "Revise 10 cards de vocabulário", DoneCriteria: "10 cards revisados"},
+			{Title: "Input em inglês", GoalDomain: GoalEnglish, EstimatedMin: 30, Instructions: "Assista ou leia conteúdo em inglês por 30 min. Depois, responda 3 perguntas de compreensão.", DoneCriteria: "3 respostas de compreensão validadas", GateProfile: &comprehensionGateRef},
+			{Title: "Prática de speaking", GoalDomain: GoalEnglish, EstimatedMin: 15, Instructions: "Grave 1-2 min falando sobre o conteúdo consumido. Preencha a rubrica (clarity, fluency, accuracy, vocabulary: 0-2 cada).", DoneCriteria: "Áudio gravado + rubrica preenchida", GateProfile: &speakingGateRef},
+			{Title: "Retrieval rápido", GoalDomain: GoalEnglish, EstimatedMin: 5, Instructions: "Faça recall de 10 itens de vocabulário sem consultar.", DoneCriteria: "10 itens de recall registrados", GateProfile: &retrievalGateRef},
 		},
 		PlanB: {
-			{Title: "Input em inglês", GoalDomain: GoalEnglish, EstimatedMin: 20, Instructions: "Leia ou ouça conteúdo em inglês por 20 min", DoneCriteria: "20 min de input registrados"},
-			{Title: "Retrieval rápido", GoalDomain: GoalEnglish, EstimatedMin: 5, Instructions: "Revise 5 cards de vocabulário", DoneCriteria: "5 cards revisados"},
+			{Title: "Input em inglês", GoalDomain: GoalEnglish, EstimatedMin: 20, Instructions: "Leia ou ouça conteúdo em inglês por 20 min. Responda 3 perguntas de compreensão.", DoneCriteria: "3 respostas de compreensão validadas", GateProfile: &comprehensionGateRef},
+			{Title: "Retrieval rápido", GoalDomain: GoalEnglish, EstimatedMin: 5, Instructions: "Faça recall de 5 itens de vocabulário.", DoneCriteria: "5 itens de recall registrados", GateProfile: &retrievalGateRef},
 		},
 		PlanC: {
-			{Title: "Listening rápido", GoalDomain: GoalEnglish, EstimatedMin: 5, Instructions: "Ouça 5 min de podcast/vídeo em inglês", DoneCriteria: "5 min de listening concluídos"},
+			{Title: "Listening rápido", GoalDomain: GoalEnglish, EstimatedMin: 10, Instructions: "Ouça 10 min de podcast/vídeo em inglês. Responda 1 pergunta de compreensão.", DoneCriteria: "1 resposta de compreensão validada", GateProfile: &comprehensionMinRef},
+			{Title: "Retrieval mínimo", GoalDomain: GoalEnglish, EstimatedMin: 5, Instructions: "Faça recall de 3 itens.", DoneCriteria: "3 itens de recall registrados", GateProfile: &retrievalMinRef},
 		},
 	},
 	GoalJava: {
