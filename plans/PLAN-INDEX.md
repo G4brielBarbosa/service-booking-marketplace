@@ -22,28 +22,28 @@ Baseado em `specs/SPEC-INDEX.md` (P1 → P2 → P3).
 
 ### P1 — MVP
 
-- `SPEC-001` → `plans/PLAN-001-onboarding.md` — **todo**
-- `SPEC-002` → `plans/PLAN-002-rotina-diaria.md` — **todo**
-- `SPEC-003` → `plans/PLAN-003-quality-gates.md` — **todo**
-- `SPEC-004` → `plans/PLAN-004-ingles-diario.md` — **todo**
-- `SPEC-005` → `plans/PLAN-005-java-diario.md` — **todo**
-- `SPEC-006` → `plans/PLAN-006-sono.md` — **todo**
-- `SPEC-007` → `plans/PLAN-007-revisao-semanal.md` — **todo**
+- `SPEC-001` → `plans/PLAN-001-onboarding.md` — **pronto**
+- `SPEC-002` → `plans/PLAN-002-rotina-diaria.md` — **pronto**
+- `SPEC-003` → `plans/PLAN-003-quality-gates.md` — **pronto**
+- `SPEC-004` → `plans/PLAN-004-ingles-diario.md` — **pronto**
+- `SPEC-005` → `plans/PLAN-005-java-diario.md` — **pronto**
+- `SPEC-006` → `plans/PLAN-006-sono.md` — **pronto**
+- `SPEC-007` → `plans/PLAN-007-revisao-semanal.md` — **pronto**
 
 ### P2 — Robustez / escala do comportamento
 
-- `SPEC-008` → `plans/PLAN-008-backlog-inteligente.md` — **todo**
-- `SPEC-009` → `plans/PLAN-009-falso-progresso.md` — **todo**
-- `SPEC-010` → `plans/PLAN-010-governanca-personalizacao.md` — **todo**
-- `SPEC-011` → `plans/PLAN-011-nudges-dias-ruins.md` — **todo**
+- `SPEC-008` → `plans/PLAN-008-backlog-inteligente.md` — **pronto**
+- `SPEC-009` → `plans/PLAN-009-falso-progresso.md` — **pronto**
+- `SPEC-010` → `plans/PLAN-010-governanca-personalizacao.md` — **pronto**
+- `SPEC-011` → `plans/PLAN-011-nudges-dias-ruins.md` — **pronto**
 
 ### P3 — Metas paralelas + cross-cutting
 
-- `SPEC-012` → `plans/PLAN-012-vida-saudavel.md` — **todo**
-- `SPEC-013` → `plans/PLAN-013-autoestima.md` — **todo**
-- `SPEC-014` → `plans/PLAN-014-saas-aposta-semanal.md` — **todo**
-- `SPEC-015` → `plans/PLAN-015-privacidade.md` — **todo**
-- `SPEC-016` → `plans/PLAN-016-metricas-registros.md` — **todo**
+- `SPEC-012` → `plans/PLAN-012-vida-saudavel.md` — **pronto**
+- `SPEC-013` → `plans/PLAN-013-autoestima.md` — **pronto**
+- `SPEC-014` → `plans/PLAN-014-saas-aposta-semanal.md` — **pronto**
+- `SPEC-015` → `plans/PLAN-015-privacidade.md` — **pronto**
+- `SPEC-016` → `plans/PLAN-016-metricas-registros.md` — **pronto**
 
 ## Dicas de consistência entre PLANs (cross-cutting)
 
