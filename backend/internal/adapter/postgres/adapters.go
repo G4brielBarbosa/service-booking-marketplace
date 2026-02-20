@@ -135,3 +135,42 @@ func (r *DailyStateRepo) Save(ctx context.Context, state *domain.DailyState) err
 func (r *DailyStateRepo) Update(ctx context.Context, state *domain.DailyState) error {
 	return r.s.UpdateDailyState(ctx, state)
 }
+
+// EvidenceRepo adapts Store to port.EvidenceRepository.
+type EvidenceRepo struct{ s *Store }
+
+func NewEvidenceRepo(s *Store) *EvidenceRepo { return &EvidenceRepo{s: s} }
+
+func (r *EvidenceRepo) Save(ctx context.Context, ev *domain.Evidence) error {
+	return r.s.SaveEvidence(ctx, ev)
+}
+func (r *EvidenceRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) ([]domain.Evidence, error) {
+	return r.s.FindEvidenceByTaskID(ctx, taskID)
+}
+
+// GateResultRepo adapts Store to port.GateResultRepository.
+type GateResultRepo struct{ s *Store }
+
+func NewGateResultRepo(s *Store) *GateResultRepo { return &GateResultRepo{s: s} }
+
+func (r *GateResultRepo) Save(ctx context.Context, gr *domain.GateResult) error {
+	return r.s.SaveGateResult(ctx, gr)
+}
+func (r *GateResultRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.GateResult, error) {
+	return r.s.FindGateResultByTaskID(ctx, taskID)
+}
+func (r *GateResultRepo) FindByUserAndDate(ctx context.Context, userID uuid.UUID, localDate string) ([]domain.GateResult, error) {
+	return r.s.FindGateResultsByUserAndDate(ctx, userID, localDate)
+}
+
+// RubricRepo adapts Store to port.RubricRepository.
+type RubricRepo struct{ s *Store }
+
+func NewRubricRepo(s *Store) *RubricRepo { return &RubricRepo{s: s} }
+
+func (r *RubricRepo) Save(ctx context.Context, rubric *domain.RubricScore) error {
+	return r.s.SaveRubric(ctx, rubric)
+}
+func (r *RubricRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.RubricScore, error) {
+	return r.s.FindRubricByTaskID(ctx, taskID)
+}

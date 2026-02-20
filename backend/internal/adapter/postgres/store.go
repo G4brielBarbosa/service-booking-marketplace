@@ -497,3 +497,146 @@ func (s *Store) SaveDailyState(ctx context.Context, state *domain.DailyState) er
 func (s *Store) UpdateDailyState(ctx context.Context, state *domain.DailyState) error {
 	return s.SaveDailyState(ctx, state)
 }
+
+// --- EvidenceRepository ---
+
+func (s *Store) SaveEvidence(ctx context.Context, ev *domain.Evidence) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO evidences (evidence_id, user_id, task_id, kind, sensitivity, storage_policy, content_ref, summary, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		ev.EvidenceID, ev.UserID, ev.TaskID,
+		string(ev.Kind), string(ev.Sensitivity), string(ev.StoragePolicy),
+		ev.ContentRef, ev.Summary, ev.Timestamp)
+	return err
+}
+
+func (s *Store) FindEvidenceByTaskID(ctx context.Context, taskID uuid.UUID) ([]domain.Evidence, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT evidence_id, user_id, task_id, kind, sensitivity, storage_policy, content_ref, summary, created_at
+		 FROM evidences WHERE task_id = $1 ORDER BY created_at`, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.Evidence
+	for rows.Next() {
+		var ev domain.Evidence
+		if err := rows.Scan(&ev.EvidenceID, &ev.UserID, &ev.TaskID,
+			&ev.Kind, &ev.Sensitivity, &ev.StoragePolicy,
+			&ev.ContentRef, &ev.Summary, &ev.Timestamp); err != nil {
+			return nil, err
+		}
+		results = append(results, ev)
+	}
+	return results, nil
+}
+
+// --- GateResultRepository ---
+
+func (s *Store) SaveGateResult(ctx context.Context, gr *domain.GateResult) error {
+	metricsJSON, _ := json.Marshal(gr.DerivedMetrics)
+	eids := gr.EvidenceIDs
+	if eids == nil {
+		eids = []uuid.UUID{}
+	}
+
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO gate_results (gate_result_id, user_id, task_id, gate_status, failure_reason_code, reason_short, next_min_step, evidence_ids, derived_metrics, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 ON CONFLICT (gate_result_id) DO UPDATE SET
+		     gate_status = EXCLUDED.gate_status,
+		     failure_reason_code = EXCLUDED.failure_reason_code,
+		     reason_short = EXCLUDED.reason_short,
+		     next_min_step = EXCLUDED.next_min_step,
+		     evidence_ids = EXCLUDED.evidence_ids,
+		     derived_metrics = EXCLUDED.derived_metrics`,
+		gr.GateResultID, gr.UserID, gr.TaskID,
+		string(gr.GateStatus), string(gr.FailureReason),
+		gr.ReasonShort, gr.NextMinStep, eids, metricsJSON, gr.Timestamp)
+	return err
+}
+
+func (s *Store) FindGateResultByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.GateResult, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT gate_result_id, user_id, task_id, gate_status, failure_reason_code, reason_short, next_min_step, evidence_ids, derived_metrics, created_at
+		 FROM gate_results WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1`, taskID)
+
+	var gr domain.GateResult
+	var metricsJSON []byte
+
+	err := row.Scan(&gr.GateResultID, &gr.UserID, &gr.TaskID,
+		&gr.GateStatus, &gr.FailureReason, &gr.ReasonShort, &gr.NextMinStep,
+		&gr.EvidenceIDs, &metricsJSON, &gr.Timestamp)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	gr.DerivedMetrics = map[string]any{}
+	_ = json.Unmarshal(metricsJSON, &gr.DerivedMetrics)
+	return &gr, nil
+}
+
+func (s *Store) FindGateResultsByUserAndDate(ctx context.Context, userID uuid.UUID, localDate string) ([]domain.GateResult, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT gr.gate_result_id, gr.user_id, gr.task_id, gr.gate_status, gr.failure_reason_code, gr.reason_short, gr.next_min_step, gr.evidence_ids, gr.derived_metrics, gr.created_at
+		 FROM gate_results gr
+		 JOIN planned_tasks pt ON gr.task_id = pt.task_id
+		 WHERE gr.user_id = $1 AND pt.local_date = $2
+		 ORDER BY gr.created_at`, userID, localDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.GateResult
+	for rows.Next() {
+		var gr domain.GateResult
+		var metricsJSON []byte
+		if err := rows.Scan(&gr.GateResultID, &gr.UserID, &gr.TaskID,
+			&gr.GateStatus, &gr.FailureReason, &gr.ReasonShort, &gr.NextMinStep,
+			&gr.EvidenceIDs, &metricsJSON, &gr.Timestamp); err != nil {
+			return nil, err
+		}
+		gr.DerivedMetrics = map[string]any{}
+		_ = json.Unmarshal(metricsJSON, &gr.DerivedMetrics)
+		results = append(results, gr)
+	}
+	return results, nil
+}
+
+// --- RubricRepository ---
+
+func (s *Store) SaveRubric(ctx context.Context, r *domain.RubricScore) error {
+	dimsJSON, _ := json.Marshal(r.Dimensions)
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO rubric_scores (rubric_id, user_id, task_id, domain, dimensions, total, status, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+		 ON CONFLICT (rubric_id) DO UPDATE SET
+		     dimensions = EXCLUDED.dimensions,
+		     total = EXCLUDED.total,
+		     status = EXCLUDED.status`,
+		r.RubricID, r.UserID, r.TaskID, string(r.Domain), dimsJSON, r.Total, r.Status)
+	return err
+}
+
+func (s *Store) FindRubricByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.RubricScore, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT rubric_id, user_id, task_id, domain, dimensions, total, status
+		 FROM rubric_scores WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var r domain.RubricScore
+	var dimsJSON []byte
+	err := row.Scan(&r.RubricID, &r.UserID, &r.TaskID, &r.Domain, &dimsJSON, &r.Total, &r.Status)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	r.Dimensions = map[string]int{}
+	_ = json.Unmarshal(dimsJSON, &r.Dimensions)
+	return &r, nil
+}
