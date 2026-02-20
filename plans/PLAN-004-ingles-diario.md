@@ -22,6 +22,12 @@
 - Privacidade: speaking áudio é C3 por padrão; o usuário pode optar por “não guardar” (processar e descartar) conforme `SPEC-015`.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (Go backend + Next admin; Postgres/sqlc; Redis/worker; privacidade/retensão) como base de execução e armazenamento.
+  - **Motivo**: inglês depende de gates (`SPEC-003`), métricas (`SPEC-016`) e política de C3 para áudio (`SPEC-015`) — padronização evita inconsistência.
+  - **Alternativas consideradas**: decidir stack por domínio; descartado.
+  - **Impactos/Trade-offs**: baseline central vira referência obrigatória.
+
 - **D-001 — Modelar o loop como três tarefas separadas (com gates próprios)**
   - **Decisão**: no `DailyPlan`, o inglês aparece como 2–3 `PlannedTask`s (input, speaking, retrieval) dependendo do plano A/B/C.
   - **Motivo**: cada bloco tem evidência diferente e permite “execução parcial” sem mentir sobre speaking (alinhado a `SPEC-003` e edge cases).

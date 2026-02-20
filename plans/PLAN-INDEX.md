@@ -20,6 +20,10 @@ Este índice organiza a camada “HOW” (PLANs) e mantém o vínculo explícito
 
 Baseado em `specs/SPEC-INDEX.md` (P1 → P2 → P3).
 
+### Baseline de plataforma (cross-cutting)
+
+- `PLAN-000` → `plans/PLAN-000-platform-baseline.md` — **pronto**
+
 ### P1 — MVP
 
 - `SPEC-001` → `plans/PLAN-001-onboarding.md` — **pronto**

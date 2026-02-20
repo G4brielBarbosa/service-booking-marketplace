@@ -22,9 +22,15 @@
 - **Fuso horário**: derivado do onboarding (pergunta simples) ou default para o timezone do servidor se ausente; usado para “dia atual”, semanas e quiet hours.
 - **Metas suportadas**: conjunto fechado do PRD (Inglês, Java, Sono, Vida saudável, Autoestima, SaaS).
 - **Baseline mínima** é “suficiente para operar” (como na SPEC): se áudio não for possível, registrar substitutos e marcar speaking baseline como pendente (alinhado a `SPEC-003` + `SPEC-015`).
-- **Armazenamento**: como o repo ainda não tem stack, este PLAN assume um **backend único** (monólito simples) com um armazenamento transacional (SQL ou equivalente) e um log de eventos (tabela/coleção).
+- **Plataforma/stack**: seguir o baseline em `plans/PLAN-000-platform-baseline.md` (Go backend + Next admin + Postgres/sqlc + Redis + Docker Compose; idempotência, event log, retenção C1–C5).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` como fonte de verdade para stack/arquitetura/padrões cross-cutting.
+  - **Motivo**: evitar duplicação e conflitos entre PLANs; garantir consistência em idempotência, jobs, eventos e privacidade.
+  - **Alternativas consideradas**: definir stack por feature; descartado (inconsistente).
+  - **Impactos/Trade-offs**: mudanças de stack passam a exigir atualização do baseline.
+
 - **D-001 — Onboarding como máquina de estados persistida**
   - **Decisão**: modelar onboarding como uma `OnboardingSession` com `status` + `current_step` + `pending_items` persistidos.
   - **Motivo**: suporta interrupções/retomada (FR-012) e mantém interação curta (RNF1).

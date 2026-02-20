@@ -19,9 +19,15 @@
 ## 3) Assumptions (assunções)
 - Existe um `NudgePolicy` por usuário (com defaults) e um log de mensagens proativas para contabilizar budgets.
 - O sistema consegue identificar “sinal de início” de uma tarefa (ex.: status `in_progress`, evidência parcial, ou interação com o task).
-- Timeouts são executados por um **scheduler/worker** (cron, filas ou job runner) — sem definir stack.
+- Timeouts são executados por um **worker/scheduler** conforme o baseline `plans/PLAN-000-platform-baseline.md` (worker Go + Redis + revalidação de elegibilidade no envio).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` para execução via worker/jobs (Redis), idempotência e logging estruturado.
+  - **Motivo**: nudges/timeouts/expiração exigem scheduler confiável e dedupe para evitar spam acidental.
+  - **Alternativas consideradas**: cron best-effort sem dedupe; descartado.
+  - **Impactos/Trade-offs**: adiciona dependência explícita de worker/Redis.
+
 - **D-001 — Budgets e logs como mecanismo de qualidade**
   - **Decisão**: toda mensagem proativa que conta para budget registra `ProactiveMessageLog` com `counted_in_budget=true/false` e tipo.
   - **Motivo**: impedir regressão para spam e permitir auditoria/observabilidade.

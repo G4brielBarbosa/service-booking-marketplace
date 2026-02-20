@@ -22,6 +22,12 @@
 - “Ação de coragem” é tratada como meta de fundação (não intensiva), mas deve ser observável e pequena.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` para execução/armazenamento, com ênfase em privacidade C3, redaction e retenção/expiração.
+  - **Motivo**: autoestima lida com conteúdo sensível; precisa de padrões consistentes de opt-out/modo mínimo e logs neutros (`SPEC-015`).
+  - **Alternativas consideradas**: tratar privacidade “caso a caso”; descartado.
+  - **Impactos/Trade-offs**: baseline vira referência obrigatória para política de dados.
+
 - **D-001 — Conteúdo sensível com defaults conservadores**
   - **Decisão**: por padrão, armazenar registros de autoestima como **C3** com retenção curta e opção “não guardar” (apenas contar/derivar).
   - **Motivo**: `SPEC-015` (confiança) + natureza sensível do domínio.

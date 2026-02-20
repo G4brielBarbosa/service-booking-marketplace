@@ -23,6 +23,12 @@
 - Privacidade: dados de sono são C1/C2 (não necessariamente sensíveis), mas podem revelar rotina; manter minimização e controles de apagar (`SPEC-015`).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` para stack/arquitetura/padrões (Go backend + worker/jobs; Postgres/sqlc; Redis; retenção/expiração; redaction).
+  - **Motivo**: sono alimenta métricas (`SPEC-016`), revisão semanal (`SPEC-007`) e pode usar nudges (`SPEC-011`); precisa de padrões consistentes.
+  - **Alternativas consideradas**: decisões isoladas por feature; descartado.
+  - **Impactos/Trade-offs**: baseline central concentra decisões de execução e retenção.
+
 - **D-001 — Gate de sono é leve e orientado a consistência**
   - **Decisão**: “cumpriu sono” = (a) diário mínimo registrado (mesmo parcial) + (b) rotina mínima executada/registrada quando aplicável; em dia ruim, permitir versão mínima.
   - **Motivo**: `SPEC-006` FR-004 + `SPEC-003` (hábito/fundação com fricção proporcional).

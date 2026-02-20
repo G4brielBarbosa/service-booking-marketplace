@@ -21,6 +21,12 @@
 - Recorrência de erros segue default do `SPEC-016` (≥3 em 14 dias).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (Go backend + Next admin; Postgres/sqlc; Redis/worker; idempotência; privacidade/retensão) como base.
+  - **Motivo**: Java depende de gates (`SPEC-003`), métricas (`SPEC-016`) e integração com rotina diária (`SPEC-002`) — padrões consistentes evitam inconsistência.
+  - **Alternativas consideradas**: decidir stack por domínio; descartado.
+  - **Impactos/Trade-offs**: baseline central vira referência única para stack.
+
 - **D-001 — Separar evidência de prática, retrieval e aprendizado**
   - **Decisão**: modelar evidência mínima como três artefatos pequenos: `JavaPracticeEvidence`, `RetrievalResult`, `LearningLogEntry`.
   - **Motivo**: mantém baixa fricção e permite detecção de sinais (retrieval fraco/erros recorrentes) (`SPEC-016`/`SPEC-009`).

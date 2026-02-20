@@ -22,6 +22,12 @@
 - O sistema consegue separar **conteúdo sensível bruto** (C3) de **derivados não sensíveis** (C4) e aplicar retenção diferente.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` como fonte de verdade para execução (API/worker), persistência (Postgres/sqlc), jobs (Redis), idempotência e redaction/retensão.
+  - **Motivo**: gates/evidência dependem de privacidade (`SPEC-015`), métricas (`SPEC-016`) e fluxo diário (`SPEC-002`) — precisam de padrões consistentes.
+  - **Alternativas consideradas**: stack por feature; descartado.
+  - **Impactos/Trade-offs**: mudanças de plataforma centralizadas no baseline.
+
 - **D-001 — Gate como artefato explícito por tarefa**
   - **Decisão**: cada `PlannedTask` pode carregar `gate_profile` (tipo + requisitos mínimos) e o sistema registra `GateResult` para aquela execução.
   - **Motivo**: satisfaz FR-002/FR-006 e permite consulta “passou/falhou” (FR-011) e métricas (`SPEC-016`).

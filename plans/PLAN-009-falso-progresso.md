@@ -22,6 +22,12 @@
 - O sistema consegue diferenciar “dia ruim” (Plano C) e reduzir reforço para versão mínima.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (event log/agregados, worker/jobs, idempotência, privacidade) como base.
+  - **Motivo**: sinais e reforços dependem de dados de `SPEC-016` e integração com backlog/revisão; precisam de padrões consistentes e jobs confiáveis.
+  - **Alternativas consideradas**: implementação ad hoc por feature; descartado.
+  - **Impactos/Trade-offs**: baseline vira referência obrigatória para execução/observabilidade.
+
 - **D-001 — Sinais determinísticos com janela global**
   - **Decisão**: definir uma janela global MVP para detecção: `last_14d` (ou “últimas 5 sessões do domínio”, quando existir).
   - **Motivo**: consistência e testabilidade (FR-002).

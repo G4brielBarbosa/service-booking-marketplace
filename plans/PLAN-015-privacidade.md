@@ -22,6 +22,12 @@
 - Fluxos que coletam conteúdo sensível (ex.: áudio, textos emocionais) podem operar em “processar e descartar” mantendo derivados não sensíveis.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` como referência de stack/execução (Go API + worker/jobs; Postgres/sqlc; Redis) e como ponto único para políticas e defaults cross-cutting.
+  - **Motivo**: privacidade governa todos os fluxos e precisa ser aplicada de forma uniforme (intake, redaction, expiração, deleção).
+  - **Alternativas consideradas**: cada feature implementar suas próprias regras; descartado.
+  - **Impactos/Trade-offs**: mudanças de defaults passam a exigir atualizar baseline + este PLAN.
+
 - **D-001 — Classificação e políticas por categoria**
   - **Decisão**: centralizar política em `PrivacyPolicy` com:
     - opt-out por categoria (especialmente C3)

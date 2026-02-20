@@ -26,6 +26,12 @@
 - Privacidade/retensão/opt-out seguem `SPEC-015` e devem ser aplicadas ao que for registrado no estado diário (especialmente se alguma tarefa exigir evidência sensível no futuro via `SPEC-003`).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` como fonte de verdade para stack/arquitetura/padrões cross-cutting (Go backend + Next admin; Postgres/sqlc; Redis/worker; idempotência; privacidade C1–C5).
+  - **Motivo**: garantir consistência entre rotina diária, jobs/timeouts (`SPEC-011`), métricas (`SPEC-016`) e privacidade (`SPEC-015`) sem duplicação.
+  - **Alternativas consideradas**: escolher stack por feature; descartado.
+  - **Impactos/Trade-offs**: ajustes de stack exigem atualização do baseline.
+
 - **D-001 — “Estado do dia” como agregação persistida**
   - **Decisão**: persistir `DailyState` contendo `DailyCheckIn`, `DailyPlan` e lista de `PlannedTask` com status e timestamps.
   - **Motivo**: habilita consulta rápida de steps (PRD §2; `SPEC-002` FR-008/FR-009) e retomada.

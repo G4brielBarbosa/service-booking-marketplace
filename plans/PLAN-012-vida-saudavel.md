@@ -22,6 +22,12 @@
 - Privacidade: registros de dor/fadiga podem ser sensíveis; manter minimização e permitir apagar (`SPEC-015`).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (persistência Postgres/sqlc, agregados `SPEC-016`, worker/jobs, retenção/privacidade) como base.
+  - **Motivo**: saúde alimenta revisão semanal e métricas; precisa dos mesmos padrões de retenção, redaction e performance.
+  - **Alternativas consideradas**: stack por feature; descartado.
+  - **Impactos/Trade-offs**: baseline central concentra decisões de execução/armazenamento.
+
 - **D-001 — Plano semanal como entidade explícita com versão mínima**
   - **Decisão**: modelar `HealthWeeklyPlan` com sessões planejadas e “versão mínima” para semanas ruins.
   - **Motivo**: suporta FR-001/FR-002 e reduz “tudo ou nada”.

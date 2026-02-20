@@ -22,6 +22,12 @@
 - O sistema pode operar mesmo com semana ruim: permitir recorte do pronto e registrar “mínimo viável”.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (event log/agregados, worker/jobs, retenção e redaction) como base.
+  - **Motivo**: SaaS precisa registrar “pronto/resultado” com minimização e alimentar métricas semanais sem expor dados sensíveis.
+  - **Alternativas consideradas**: registros ad hoc por conversa; descartado.
+  - **Impactos/Trade-offs**: baseline define retenção default e padrões de storage.
+
 - **D-001 — Definição de pronto como gate leve de “entrega observável”**
   - **Decisão**: tratar “pronto” como um `GateProfile` de domínio (não técnico): para concluir o bloco profundo, o usuário deve registrar `resultado_observado` compatível com o pronto.
   - **Motivo**: evitar ilusão de progresso (User Story 2) e alinhar com `SPEC-003` (sem burocracia).

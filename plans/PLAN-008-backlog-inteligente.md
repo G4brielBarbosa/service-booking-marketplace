@@ -21,6 +21,12 @@
 - O backlog alimenta `SPEC-002` (planejamento diário) como **candidatos opcionais**, não como obrigações automáticas no MVP.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (event log, agregados, retenção/expiração, idempotência, jobs) como base de execução do backlog.
+  - **Motivo**: backlog deriva sinais de `SPEC-016` e depende de governança/privacidade; padronização evita inconsistência e over-engineering.
+  - **Alternativas consideradas**: implementação “solta” por feature; descartado.
+  - **Impactos/Trade-offs**: mudanças de plataforma passam pelo baseline.
+
 - **D-001 — BacklogItem como entidade de domínio, com “evidence_ref”**
   - **Decisão**: cada item guarda: origem/sinal, evidência resumida (sem conteúdo sensível), critério observável de feito e prioridade.
   - **Motivo**: transparência (“por que agora”) e auditabilidade (`SPEC-008` FR-001/FR-006).

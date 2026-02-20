@@ -21,6 +21,12 @@
 - Quando dados faltarem, o sistema não penaliza; marca lacunas e sugere coleta mínima (sem nudges proativos fora de `SPEC-011`).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` para stack/execução (Go API + worker/jobs; Postgres/sqlc; Redis) e padrões (event envelope, idempotência, retenção/expiração).
+  - **Motivo**: métricas/registros são backbone para todas as SPECS; precisam de um padrão único de ingestão, agregação e performance.
+  - **Alternativas consideradas**: implementar cada agregação em cada feature; descartado.
+  - **Impactos/Trade-offs**: exige disciplina de eventos e jobs de agregação incremental.
+
 - **D-001 — Separar “detalhes diários” de “agregados semanais”**
   - **Decisão**: manter tabelas/coleções de registros diários (C1/C2) com retenção moderada, e agregados semanais (C4) com retenção longa.
   - **Motivo**: performance e privacidade; suporta comparações semanais mesmo quando detalhes expiram.

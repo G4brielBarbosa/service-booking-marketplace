@@ -21,6 +21,12 @@
 - Governança de metas (limite de 2 intensivas) existe e pode ser consultada (`SPEC-010`).
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (event log, agregados semanais, retenção/privacidade, jobs) como base para geração do painel e persistência.
+  - **Motivo**: revisão semanal depende diretamente de agregados/targets de `SPEC-016` e controles de privacidade `SPEC-015`; padronização evita divergência.
+  - **Alternativas consideradas**: decisões ad hoc por feature; descartado.
+  - **Impactos/Trade-offs**: baseline vira dependência explícita.
+
 - **D-001 — Revisão semanal como agregação + conversa guiada**
   - **Decisão**: gerar `WeeklyPanel` a partir de agregados (`SPEC-016`) e conduzir decisões em passos curtos, registrando `WeeklyReviewResult`.
   - **Motivo**: atende FR-001..FR-004 com baixa fricção (10–20 min).

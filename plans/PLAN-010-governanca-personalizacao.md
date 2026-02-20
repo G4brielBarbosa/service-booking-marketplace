@@ -22,6 +22,12 @@
 - As recomendações/alertas são exibidas quando o usuário interagir (check-in, revisão semanal), e proatividade fica para `SPEC-011`.
 
 ## 4) Decisões técnicas (Decision log)
+- **D-000 — Baseline de plataforma**
+  - **Decisão**: adotar o baseline `plans/PLAN-000-platform-baseline.md` (event log, retenção C5, worker/jobs, idempotência) como base.
+  - **Motivo**: governança e personalização dependem de métricas (`SPEC-016`) e devem ser consistentes em persistência e observabilidade.
+  - **Alternativas consideradas**: regras embutidas em múltiplos serviços sem padrão; descartado.
+  - **Impactos/Trade-offs**: mudanças de plataforma centralizadas.
+
 - **D-001 — Estado de “ciclo” separado do histórico**
   - **Decisão**: modelar `GoalCycle` (estado atual) e registrar mudanças via `GoalChangeEvent`.
   - **Motivo**: facilita consulta de “slots” e pausas sem reescrever passado, e alimenta métricas (`SPEC-016`).
