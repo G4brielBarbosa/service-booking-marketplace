@@ -174,3 +174,45 @@ func (r *RubricRepo) Save(ctx context.Context, rubric *domain.RubricScore) error
 func (r *RubricRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.RubricScore, error) {
 	return r.s.FindRubricByTaskID(ctx, taskID)
 }
+
+// EnglishInputRepo adapts Store to port.EnglishInputRepository.
+type EnglishInputRepo struct{ s *Store }
+
+func NewEnglishInputRepo(s *Store) *EnglishInputRepo { return &EnglishInputRepo{s: s} }
+
+func (r *EnglishInputRepo) Save(ctx context.Context, sess *domain.EnglishInputSession) error {
+	return r.s.SaveEnglishInput(ctx, sess)
+}
+func (r *EnglishInputRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.EnglishInputSession, error) {
+	return r.s.FindEnglishInputByTaskID(ctx, taskID)
+}
+
+// EnglishRetrievalRepo adapts Store to port.EnglishRetrievalRepository.
+type EnglishRetrievalRepo struct{ s *Store }
+
+func NewEnglishRetrievalRepo(s *Store) *EnglishRetrievalRepo { return &EnglishRetrievalRepo{s: s} }
+
+func (r *EnglishRetrievalRepo) Save(ctx context.Context, ret *domain.EnglishRetrieval) error {
+	return r.s.SaveEnglishRetrieval(ctx, ret)
+}
+func (r *EnglishRetrievalRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.EnglishRetrieval, error) {
+	return r.s.FindEnglishRetrievalByTaskID(ctx, taskID)
+}
+func (r *EnglishRetrievalRepo) FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishRetrieval, error) {
+	return r.s.FindEnglishRetrievalsByUserAndDateRange(ctx, userID, startDate, endDate)
+}
+
+// EnglishErrorLogRepo adapts Store to port.EnglishErrorLogRepository.
+type EnglishErrorLogRepo struct{ s *Store }
+
+func NewEnglishErrorLogRepo(s *Store) *EnglishErrorLogRepo { return &EnglishErrorLogRepo{s: s} }
+
+func (r *EnglishErrorLogRepo) Save(ctx context.Context, entry *domain.EnglishErrorLogEntry) error {
+	return r.s.SaveEnglishErrorLog(ctx, entry)
+}
+func (r *EnglishErrorLogRepo) FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishErrorLogEntry, error) {
+	return r.s.FindEnglishErrorsByUserAndDateRange(ctx, userID, startDate, endDate)
+}
+func (r *EnglishErrorLogRepo) CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error) {
+	return r.s.CountEnglishErrorsByUserLabelSince(ctx, userID, label, since)
+}

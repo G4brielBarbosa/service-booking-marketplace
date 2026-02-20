@@ -68,10 +68,18 @@ func main() {
 	evidenceRepo := postgres.NewEvidenceRepo(store)
 	gateResultRepo := postgres.NewGateResultRepo(store)
 	rubricRepo := postgres.NewRubricRepo(store)
-	_ = rubricRepo
 
 	gateUC := usecase.NewGateUseCase(
 		userRepo, dailyStateRepo, privRepo, evidenceRepo, gateResultRepo, rubricRepo, eventRepo, log,
+	)
+
+	englishInputRepo := postgres.NewEnglishInputRepo(store)
+	englishRetrievalRepo := postgres.NewEnglishRetrievalRepo(store)
+	englishErrorLogRepo := postgres.NewEnglishErrorLogRepo(store)
+
+	englishUC := usecase.NewEnglishUseCase(
+		userRepo, dailyStateRepo, englishInputRepo, englishRetrievalRepo, englishErrorLogRepo,
+		rubricRepo, gateUC, eventRepo, log,
 	)
 
 	// HTTP health endpoint for admin/monitoring
@@ -92,7 +100,7 @@ func main() {
 	}()
 
 	// Start Telegram bot (long polling)
-	bot, err := telegram.NewBot(cfg.TelegramBotToken, onboardingUC, dailyRoutineUC, gateUC, idempRepo, cfg.FeatureOnboardingV1, cfg.FeatureDailyRoutineV1, cfg.FeatureQualityGatesV1, log)
+	bot, err := telegram.NewBot(cfg.TelegramBotToken, onboardingUC, dailyRoutineUC, gateUC, englishUC, idempRepo, cfg.FeatureOnboardingV1, cfg.FeatureDailyRoutineV1, cfg.FeatureQualityGatesV1, log)
 	if err != nil {
 		log.Error("creating telegram bot", "error", err)
 		os.Exit(1)

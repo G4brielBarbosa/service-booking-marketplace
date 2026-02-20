@@ -20,6 +20,7 @@ type Bot struct {
 	onboarding   *usecase.OnboardingUseCase
 	dailyRoutine *usecase.DailyRoutineUseCase
 	gates        *usecase.GateUseCase
+	english      *usecase.EnglishUseCase
 	idempotent   port.IdempotencyStore
 	featureOn    bool
 	dailyOn      bool
@@ -39,6 +40,7 @@ func NewBot(
 	onboarding *usecase.OnboardingUseCase,
 	dailyRoutine *usecase.DailyRoutineUseCase,
 	gates *usecase.GateUseCase,
+	english *usecase.EnglishUseCase,
 	idempotent port.IdempotencyStore,
 	featureOn bool,
 	dailyOn bool,
@@ -57,6 +59,7 @@ func NewBot(
 		onboarding:      onboarding,
 		dailyRoutine:    dailyRoutine,
 		gates:           gates,
+		english:         english,
 		idempotent:      idempotent,
 		featureOn:       featureOn,
 		dailyOn:         dailyOn,
@@ -185,6 +188,9 @@ func (b *Bot) routeMessage(ctx context.Context, userID, chatID int64, text strin
 
 	case b.gatesOn && (lower == "/gates" || lower == "gates"):
 		b.handleGateSummary(ctx, userID, chatID)
+
+	case b.gatesOn && strings.HasPrefix(lower, "erro "):
+		b.handleLogError(ctx, userID, chatID, strings.TrimPrefix(text, text[:5]))
 
 	default:
 		if b.gatesOn && b.tryHandleEvidenceResponse(ctx, userID, chatID, text) {
@@ -729,6 +735,96 @@ func (b *Bot) tryHandleEvidenceResponse(ctx context.Context, userID, chatID int6
 		return false
 	}
 
+	now := time.Now()
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	localDate := now.In(loc).Format("2006-01-02")
+
+	profileID := pending.ProfileID
+
+	switch {
+	case profileID == "english_comprehension" || profileID == "english_comprehension_min":
+		b.handleComprehensionEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
+	case profileID == "english_retrieval" || profileID == "english_retrieval_min":
+		b.handleRetrievalEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
+	case profileID == "speaking_output":
+		if parsed, ok := parseRubricFromText(text); ok {
+			b.handleSpeakingRubricEvidence(ctx, userID, chatID, taskID, localDate, parsed, pending)
+			return true
+		}
+		b.handleGenericEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
+	default:
+		b.handleGenericEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+	}
+}
+
+func (b *Bot) handleComprehensionEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	answers := parseMultipleAnswers(text)
+	if len(answers) == 0 {
+		_ = b.SendText(ctx, chatID, "Envie ao menos 1 resposta de compreensão. Separe respostas por quebra de linha.")
+		return
+	}
+
+	grView, err := b.english.SubmitInputCheck(ctx, userID, taskID, localDate, answers)
+	if err != nil {
+		b.log.Error("submit input check failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao processar respostas de compreensão.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+	b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+}
+
+func (b *Bot) handleRetrievalEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	items := parseMultipleAnswers(text)
+	itemsAnswered := len(items)
+
+	profile := domain.LookupGateProfile(pending.ProfileID)
+	itemsTotal := itemsAnswered
+	if profile != nil && len(profile.Requirements) > 0 {
+		itemsTotal = profile.Requirements[0].MinCount
+	}
+
+	result, grView, err := b.english.SubmitRetrieval(ctx, userID, taskID, localDate, itemsAnswered, itemsTotal, items)
+	if err != nil {
+		b.log.Error("submit retrieval failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao processar retrieval.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+
+	statusIcon := "✅"
+	if result.Status == "low" {
+		statusIcon = "⚠️"
+	}
+	_ = b.SendText(ctx, chatID, fmt.Sprintf("%s Retrieval: %d/%d — %s", statusIcon, itemsAnswered, itemsTotal, result.Status))
+
+	if grView != nil {
+		b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+	}
+}
+
+func (b *Bot) handleSpeakingRubricEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate string, dims map[string]int, pending pendingEvidenceCtx) {
+	grView, err := b.english.SubmitSpeakingRubric(ctx, userID, taskID, localDate, dims)
+	if err != nil {
+		b.log.Error("submit speaking rubric failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao processar rubrica de speaking.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+	b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+}
+
+func (b *Bot) handleGenericEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
 	profile := domain.LookupGateProfile(pending.ProfileID)
 	sensitivity := domain.SensitivityC2
 	kind := domain.EvidenceText
@@ -745,42 +841,128 @@ func (b *Bot) tryHandleEvidenceResponse(ctx context.Context, userID, chatID int6
 	if err != nil {
 		b.log.Error("submit evidence failed", "error", err)
 		_ = b.SendText(ctx, chatID, "Erro ao processar evidência. Tente novamente.")
-		return true
+		return
 	}
 
 	if !receipt.Valid {
 		_ = b.SendText(ctx, chatID, "Evidência inválida. "+receipt.Reason+"\nTente enviar novamente.")
-		return true
+		return
 	}
-
-	now := time.Now()
-	loc, _ := time.LoadLocation("America/Sao_Paulo")
-	localDate := now.In(loc).Format("2006-01-02")
 
 	grView, err := b.gates.EvaluateGate(ctx, userID, localDate, taskID)
 	if err != nil {
 		b.log.Error("evaluate gate failed", "error", err)
 		_ = b.SendText(ctx, chatID, "Erro ao avaliar evidência.")
 		delete(b.pendingEvidence, userID)
-		return true
+		return
 	}
 
 	delete(b.pendingEvidence, userID)
+	b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+}
 
+func (b *Bot) sendGateResult(ctx context.Context, userID, chatID int64, taskID uuid.UUID, grView *domain.GateResultView, pending pendingEvidenceCtx) {
 	if grView.GateStatus == domain.GateSatisfied {
 		_ = b.SendText(ctx, chatID, "✅ *Concluído!* Gate satisfeito.")
 	} else {
 		msg := fmt.Sprintf("⚠️ %s\n\n💡 *Próximo passo:* %s", grView.ReasonShort, grView.NextMinStep)
 		_ = b.SendText(ctx, chatID, msg)
 
-		taskIDStr := taskID.String()
 		b.pendingEvidence[userID] = pendingEvidenceCtx{
-			TaskID:    taskIDStr,
+			TaskID:    taskID.String(),
 			ProfileID: pending.ProfileID,
 		}
 	}
+}
 
-	return true
+func (b *Bot) handleLogError(ctx context.Context, userID, chatID int64, rawLabel string) {
+	label := strings.TrimSpace(rawLabel)
+	if label == "" {
+		_ = b.SendText(ctx, chatID, "Uso: `erro [descrição do erro]`\nExemplo: `erro confusão entre since/for`")
+		return
+	}
+
+	now := time.Now()
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	localDate := now.In(loc).Format("2006-01-02")
+
+	result, err := b.english.LogErrorOfDay(ctx, userID, localDate, label, nil)
+	if err != nil {
+		if domErr, ok := err.(*domain.DomainError); ok {
+			_ = b.SendText(ctx, chatID, domErr.Message)
+		} else {
+			b.log.Error("log error failed", "error", err)
+			_ = b.SendText(ctx, chatID, "Erro ao registrar. Tente novamente.")
+		}
+		return
+	}
+
+	msg := fmt.Sprintf("📝 Erro registrado: *%s*\nOcorrências (14 dias): %d", result.Label, result.Count14d)
+	if result.IsRecurring {
+		msg += "\n⚠️ *Erro recorrente!* Considere focar nisso esta semana."
+	}
+	_ = b.SendText(ctx, chatID, msg)
+}
+
+// --- Parsing helpers for English evidence ---
+
+func parseMultipleAnswers(text string) []string {
+	lines := strings.Split(text, "\n")
+	var answers []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			answers = append(answers, trimmed)
+		}
+	}
+	return answers
+}
+
+func parseRubricFromText(text string) (map[string]int, bool) {
+	dims := map[string]int{}
+	dimNames := []string{"clarity", "fluency", "accuracy", "vocabulary"}
+
+	if strings.Contains(text, ":") {
+		parts := strings.Fields(text)
+		for _, part := range parts {
+			kv := strings.SplitN(part, ":", 2)
+			if len(kv) == 2 {
+				key := strings.ToLower(strings.TrimSpace(kv[0]))
+				val, err := strconv.Atoi(strings.TrimSpace(kv[1]))
+				if err != nil || val < 0 || val > 2 {
+					return nil, false
+				}
+				for _, dn := range dimNames {
+					if strings.HasPrefix(dn, key) || key == dn {
+						dims[dn] = val
+						break
+					}
+				}
+			}
+		}
+		if len(dims) >= 2 {
+			return dims, true
+		}
+		return nil, false
+	}
+
+	parts := strings.Fields(text)
+	if len(parts) == 4 {
+		allValid := true
+		for i, p := range parts {
+			val, err := strconv.Atoi(p)
+			if err != nil || val < 0 || val > 2 {
+				allValid = false
+				break
+			}
+			dims[dimNames[i]] = val
+		}
+		if allValid && len(dims) == 4 {
+			return dims, true
+		}
+	}
+
+	return nil, false
 }
 
 func (b *Bot) handleGateSummary(ctx context.Context, userID, chatID int64) {

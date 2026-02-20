@@ -80,3 +80,22 @@ type RubricRepository interface {
 	Save(ctx context.Context, rubric *domain.RubricScore) error
 	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.RubricScore, error)
 }
+
+// --- English daily repositories (PLAN-004) ---
+
+type EnglishInputRepository interface {
+	Save(ctx context.Context, session *domain.EnglishInputSession) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.EnglishInputSession, error)
+}
+
+type EnglishRetrievalRepository interface {
+	Save(ctx context.Context, retrieval *domain.EnglishRetrieval) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.EnglishRetrieval, error)
+	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishRetrieval, error)
+}
+
+type EnglishErrorLogRepository interface {
+	Save(ctx context.Context, entry *domain.EnglishErrorLogEntry) error
+	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.EnglishErrorLogEntry, error)
+	CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error)
+}

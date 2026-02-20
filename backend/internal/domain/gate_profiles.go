@@ -37,6 +37,28 @@ var GateProfileCatalog = map[string]QualityGateProfile{
 		EquivalencePolicy: EquivTextEquivalent,
 	},
 
+	"english_comprehension_min": {
+		ProfileID: "english_comprehension_min",
+		Domain:    GoalEnglish,
+		TaskClass: TaskClassLearning,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Responda 1 pergunta de compreensão sobre o conteúdo.", MinCount: 1},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
+
+	"english_retrieval_min": {
+		ProfileID: "english_retrieval_min",
+		Domain:    GoalEnglish,
+		TaskClass: TaskClassLearning,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Faça recall de pelo menos 3 itens de vocabulário.", MinCount: 3},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
+
 	"java_practice": {
 		ProfileID: "java_practice",
 		Domain:    GoalJava,
