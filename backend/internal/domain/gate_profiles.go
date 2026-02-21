@@ -124,6 +124,28 @@ var GateProfileCatalog = map[string]QualityGateProfile{
 		ValidityRules:     []string{"not_empty"},
 		EquivalencePolicy: EquivTextEquivalent,
 	},
+
+	"sleep_diary_min": {
+		ProfileID: "sleep_diary_min",
+		Domain:    GoalSleep,
+		TaskClass: TaskClassHabit,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Registre o mínimo: horário que dormiu/acordou ou como dormiu (bem/mal).", MinCount: 1},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
+
+	"sleep_routine": {
+		ProfileID: "sleep_routine",
+		Domain:    GoalSleep,
+		TaskClass: TaskClassHabit,
+		Requirements: []GateRequirement{
+			{Kind: "text_answer", Description: "Registre o que fez na rotina pré-sono.", MinCount: 1},
+		},
+		ValidityRules:     []string{"not_empty"},
+		EquivalencePolicy: EquivTextEquivalent,
+	},
 }
 
 // LookupGateProfile returns the profile for a given gate_ref, or nil if not found.

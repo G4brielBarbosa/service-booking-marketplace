@@ -32,6 +32,10 @@ var (
 	javaRetrievalRef    = "java_retrieval"
 	javaRetrievalMinRef = "java_retrieval_min"
 	javaLearningLogRef  = "java_learning_log"
+
+	sleepDiaryRef    = "sleep_diary"
+	sleepDiaryMinRef = "sleep_diary_min"
+	sleepRoutineRef  = "sleep_routine"
 )
 
 var catalog = map[GoalID]map[PlanType][]TaskTemplate{
@@ -68,13 +72,15 @@ var catalog = map[GoalID]map[PlanType][]TaskTemplate{
 	},
 	GoalSleep: {
 		PlanA: {
-			{Title: "Registro de sono", GoalDomain: GoalSleep, EstimatedMin: 2, Instructions: "Registre horário e qualidade do sono", DoneCriteria: "Sono registrado"},
+			{Title: "Diário do sono", GoalDomain: GoalSleep, EstimatedMin: 2, Instructions: "Registre: horário que dormiu, horário que acordou, qualidade 0-10 e energia pela manhã 0-10. Formato: dormiu, acordou, qualidade, energia.", DoneCriteria: "Diário registrado com dados de sono", GateProfile: &sleepDiaryRef},
+			{Title: "Rotina pré-sono", GoalDomain: GoalSleep, EstimatedMin: 5, Instructions: "Execute a rotina pré-sono: desligue telas 30min antes, faça 1 atividade relaxante. Registre o que fez.", DoneCriteria: "Rotina pré-sono registrada", GateProfile: &sleepRoutineRef},
 		},
 		PlanB: {
-			{Title: "Registro de sono", GoalDomain: GoalSleep, EstimatedMin: 2, Instructions: "Registre horário e qualidade do sono", DoneCriteria: "Sono registrado"},
+			{Title: "Diário do sono", GoalDomain: GoalSleep, EstimatedMin: 2, Instructions: "Registre: horário que dormiu, horário que acordou, qualidade 0-10 e energia pela manhã 0-10. Formato: dormiu, acordou, qualidade, energia.", DoneCriteria: "Diário registrado com dados de sono", GateProfile: &sleepDiaryRef},
+			{Title: "Rotina pré-sono", GoalDomain: GoalSleep, EstimatedMin: 3, Instructions: "Execute ao menos 1 passo da rotina pré-sono. Registre o que fez.", DoneCriteria: "Rotina pré-sono registrada", GateProfile: &sleepRoutineRef},
 		},
 		PlanC: {
-			{Title: "Registro de sono", GoalDomain: GoalSleep, EstimatedMin: 1, Instructions: "Registre se dormiu bem ou mal", DoneCriteria: "Registro feito"},
+			{Title: "Diário do sono", GoalDomain: GoalSleep, EstimatedMin: 1, Instructions: "Registre o mínimo: horário que dormiu e acordou, ou como dormiu (bem/mal).", DoneCriteria: "Registro mínimo de sono feito", GateProfile: &sleepDiaryMinRef},
 		},
 	},
 	GoalHealth: {

@@ -22,6 +22,7 @@ type Bot struct {
 	gates        *usecase.GateUseCase
 	english      *usecase.EnglishUseCase
 	java         *usecase.JavaUseCase
+	sleep        *usecase.SleepUseCase
 	idempotent   port.IdempotencyStore
 	featureOn    bool
 	dailyOn      bool
@@ -43,6 +44,7 @@ func NewBot(
 	gates *usecase.GateUseCase,
 	english *usecase.EnglishUseCase,
 	java *usecase.JavaUseCase,
+	sleep *usecase.SleepUseCase,
 	idempotent port.IdempotencyStore,
 	featureOn bool,
 	dailyOn bool,
@@ -63,6 +65,7 @@ func NewBot(
 		gates:           gates,
 		english:         english,
 		java:            java,
+		sleep:           sleep,
 		idempotent:      idempotent,
 		featureOn:       featureOn,
 		dailyOn:         dailyOn,
@@ -197,6 +200,12 @@ func (b *Bot) routeMessage(ctx context.Context, userID, chatID int64, text strin
 
 	case b.gatesOn && strings.HasPrefix(lower, "aprendizado "):
 		b.handleJavaLearning(ctx, userID, chatID, strings.TrimPrefix(text, text[:len("aprendizado ")]))
+
+	case b.gatesOn && strings.HasPrefix(lower, "sono "):
+		b.handleSleepDiaryShortcut(ctx, userID, chatID, strings.TrimPrefix(text, text[:len("sono ")]))
+
+	case b.gatesOn && strings.HasPrefix(lower, "rotina "):
+		b.handleSleepRoutineShortcut(ctx, userID, chatID, strings.TrimPrefix(text, text[:len("rotina ")]))
 
 	default:
 		if b.gatesOn && b.tryHandleEvidenceResponse(ctx, userID, chatID, text) {
@@ -776,6 +785,14 @@ func (b *Bot) tryHandleEvidenceResponse(ctx context.Context, userID, chatID int6
 		b.handleJavaLearningLogEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
 		return true
 
+	case profileID == "sleep_diary" || profileID == "sleep_diary_min":
+		b.handleSleepDiaryEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
+	case profileID == "sleep_routine":
+		b.handleSleepRoutineEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
+		return true
+
 	default:
 		b.handleGenericEvidence(ctx, userID, chatID, taskID, localDate, text, pending)
 		return true
@@ -1039,6 +1056,162 @@ func (b *Bot) handleLogError(ctx context.Context, userID, chatID int64, rawLabel
 		msg += "\n⚠️ *Erro recorrente!* Considere focar nisso esta semana."
 	}
 	_ = b.SendText(ctx, chatID, msg)
+}
+
+// --- Sleep handlers (PLAN-006) ---
+
+func (b *Bot) handleSleepDiaryEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	sleptAt, wokeAt, quality, energy := domain.ParseSleepDiaryInput(text)
+
+	diaryResult, grView, err := b.sleep.SubmitSleepDiary(ctx, userID, taskID, localDate, sleptAt, wokeAt, quality, energy, nil)
+	if err != nil {
+		b.log.Error("submit sleep diary failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao registrar diário de sono.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+
+	msg := fmt.Sprintf("😴 Diário registrado (%s). %s", diaryResult.Status, diaryResult.InsightShort)
+	_ = b.SendText(ctx, chatID, msg)
+
+	if grView != nil {
+		b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+	}
+}
+
+func (b *Bot) handleSleepRoutineEvidence(ctx context.Context, userID, chatID int64, taskID uuid.UUID, localDate, text string, pending pendingEvidenceCtx) {
+	if strings.TrimSpace(text) == "" {
+		_ = b.SendText(ctx, chatID, "Registre o que fez na rotina pré-sono (texto livre).")
+		return
+	}
+
+	steps := parseMultipleAnswers(text)
+	result := "done"
+	if len(steps) == 0 {
+		result = "not_done"
+	} else if len(steps) == 1 {
+		result = "partial"
+	}
+
+	grView, err := b.sleep.RecordSleepRoutine(ctx, userID, taskID, localDate, steps, result, nil)
+	if err != nil {
+		b.log.Error("record sleep routine failed", "error", err)
+		_ = b.SendText(ctx, chatID, "Erro ao registrar rotina pré-sono.")
+		return
+	}
+
+	delete(b.pendingEvidence, userID)
+
+	msg := fmt.Sprintf("🌙 Rotina pré-sono registrada (%d passos, %s).", len(steps), result)
+	_ = b.SendText(ctx, chatID, msg)
+
+	if grView != nil {
+		b.sendGateResult(ctx, userID, chatID, taskID, grView, pending)
+	}
+}
+
+func (b *Bot) handleSleepDiaryShortcut(ctx context.Context, userID, chatID int64, rawText string) {
+	text := strings.TrimSpace(rawText)
+	if text == "" {
+		_ = b.SendText(ctx, chatID, "Uso: `sono 23:30 07:00 8 7` ou `sono bem` / `sono mal`")
+		return
+	}
+
+	now := time.Now()
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	localDate := now.In(loc).Format("2006-01-02")
+
+	task, err := b.dailyRoutine.FindTaskByTitle(ctx, userID, localDate, "Diário do sono")
+	if err != nil {
+		_ = b.SendText(ctx, chatID, "Nenhuma tarefa de sono encontrada no plano de hoje. Use /checkin para começar.")
+		return
+	}
+
+	sleptAt, wokeAt, quality, energy := domain.ParseSleepDiaryInput(text)
+
+	diaryResult, grView, err := b.sleep.SubmitSleepDiary(ctx, userID, task.TaskID, localDate, sleptAt, wokeAt, quality, energy, nil)
+	if err != nil {
+		if domErr, ok := err.(*domain.DomainError); ok {
+			_ = b.SendText(ctx, chatID, domErr.Message)
+		} else {
+			b.log.Error("sleep diary shortcut failed", "error", err)
+			_ = b.SendText(ctx, chatID, "Erro ao registrar sono. Tente novamente.")
+		}
+		return
+	}
+
+	msg := fmt.Sprintf("😴 Sono registrado (%s). %s", diaryResult.Status, diaryResult.InsightShort)
+	_ = b.SendText(ctx, chatID, msg)
+
+	if grView != nil && grView.GateStatus == domain.GateSatisfied {
+		_ = b.SendText(ctx, chatID, "✅ Gate de sono satisfeito!")
+	}
+}
+
+func (b *Bot) handleSleepRoutineShortcut(ctx context.Context, userID, chatID int64, rawText string) {
+	text := strings.TrimSpace(rawText)
+	if text == "" {
+		_ = b.SendText(ctx, chatID, "Uso: `rotina [o que fez na rotina pré-sono]`\nExemplo: `rotina desliguei telas, li 10min, respiração`")
+		return
+	}
+
+	now := time.Now()
+	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	localDate := now.In(loc).Format("2006-01-02")
+
+	task, err := b.dailyRoutine.FindTaskByTitle(ctx, userID, localDate, "Rotina pré-sono")
+	if err != nil {
+		_ = b.SendText(ctx, chatID, "Nenhuma tarefa de rotina pré-sono no plano de hoje. Use /checkin para começar.")
+		return
+	}
+
+	steps := parseRoutineSteps(text)
+	result := "done"
+	if len(steps) == 0 {
+		result = "not_done"
+	} else if len(steps) == 1 {
+		result = "partial"
+	}
+
+	grView, err := b.sleep.RecordSleepRoutine(ctx, userID, task.TaskID, localDate, steps, result, nil)
+	if err != nil {
+		if domErr, ok := err.(*domain.DomainError); ok {
+			_ = b.SendText(ctx, chatID, domErr.Message)
+		} else {
+			b.log.Error("sleep routine shortcut failed", "error", err)
+			_ = b.SendText(ctx, chatID, "Erro ao registrar rotina. Tente novamente.")
+		}
+		return
+	}
+
+	msg := fmt.Sprintf("🌙 Rotina registrada (%d passos, %s).", len(steps), result)
+	_ = b.SendText(ctx, chatID, msg)
+
+	if grView != nil && grView.GateStatus == domain.GateSatisfied {
+		_ = b.SendText(ctx, chatID, "✅ Gate de rotina pré-sono satisfeito!")
+	}
+}
+
+func parseRoutineSteps(text string) []string {
+	parts := strings.Split(text, ",")
+	var steps []string
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			steps = append(steps, trimmed)
+		}
+	}
+	if len(steps) == 0 {
+		lines := strings.Split(text, "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				steps = append(steps, trimmed)
+			}
+		}
+	}
+	return steps
 }
 
 // --- Parsing helpers for English evidence ---

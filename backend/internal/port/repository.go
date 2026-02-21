@@ -118,3 +118,23 @@ type JavaLearningLogRepository interface {
 	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.JavaLearningLogEntry, error)
 	CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error)
 }
+
+// --- Sleep daily repositories (PLAN-006) ---
+
+type SleepDiaryRepository interface {
+	Save(ctx context.Context, entry *domain.SleepDiaryEntry) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.SleepDiaryEntry, error)
+	FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.SleepDiaryEntry, error)
+}
+
+type SleepRoutineRepository interface {
+	Save(ctx context.Context, record *domain.SleepRoutineRecord) error
+	FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.SleepRoutineRecord, error)
+	FindByUserAndDate(ctx context.Context, userID uuid.UUID, localDate string) (*domain.SleepRoutineRecord, error)
+}
+
+type SleepInterventionRepository interface {
+	Save(ctx context.Context, intervention *domain.WeeklySleepIntervention) error
+	FindByUserAndWeek(ctx context.Context, userID uuid.UUID, weekID string) (*domain.WeeklySleepIntervention, error)
+	Update(ctx context.Context, intervention *domain.WeeklySleepIntervention) error
+}
