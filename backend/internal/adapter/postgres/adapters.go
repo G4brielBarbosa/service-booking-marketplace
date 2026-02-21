@@ -260,3 +260,52 @@ func (r *JavaLearningLogRepo) FindByUserAndDateRange(ctx context.Context, userID
 func (r *JavaLearningLogRepo) CountByUserLabelSince(ctx context.Context, userID uuid.UUID, label string, since string) (int, error) {
 	return r.s.CountJavaLearningLogByUserLabelSince(ctx, userID, label, since)
 }
+
+// --- Sleep daily adapters (PLAN-006) ---
+
+// SleepDiaryRepo adapts Store to port.SleepDiaryRepository.
+type SleepDiaryRepo struct{ s *Store }
+
+func NewSleepDiaryRepo(s *Store) *SleepDiaryRepo { return &SleepDiaryRepo{s: s} }
+
+func (r *SleepDiaryRepo) Save(ctx context.Context, entry *domain.SleepDiaryEntry) error {
+	return r.s.SaveSleepDiary(ctx, entry)
+}
+func (r *SleepDiaryRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.SleepDiaryEntry, error) {
+	return r.s.FindSleepDiaryByTaskID(ctx, taskID)
+}
+func (r *SleepDiaryRepo) FindByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.SleepDiaryEntry, error) {
+	return r.s.FindSleepDiaryByUserAndDateRange(ctx, userID, startDate, endDate)
+}
+
+// SleepRoutineRepo adapts Store to port.SleepRoutineRepository.
+type SleepRoutineRepo struct{ s *Store }
+
+func NewSleepRoutineRepo(s *Store) *SleepRoutineRepo { return &SleepRoutineRepo{s: s} }
+
+func (r *SleepRoutineRepo) Save(ctx context.Context, record *domain.SleepRoutineRecord) error {
+	return r.s.SaveSleepRoutine(ctx, record)
+}
+func (r *SleepRoutineRepo) FindByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.SleepRoutineRecord, error) {
+	return r.s.FindSleepRoutineByTaskID(ctx, taskID)
+}
+func (r *SleepRoutineRepo) FindByUserAndDate(ctx context.Context, userID uuid.UUID, localDate string) (*domain.SleepRoutineRecord, error) {
+	return r.s.FindSleepRoutineByUserAndDate(ctx, userID, localDate)
+}
+
+// SleepInterventionRepo adapts Store to port.SleepInterventionRepository.
+type SleepInterventionRepo struct{ s *Store }
+
+func NewSleepInterventionRepo(s *Store) *SleepInterventionRepo {
+	return &SleepInterventionRepo{s: s}
+}
+
+func (r *SleepInterventionRepo) Save(ctx context.Context, i *domain.WeeklySleepIntervention) error {
+	return r.s.SaveSleepIntervention(ctx, i)
+}
+func (r *SleepInterventionRepo) FindByUserAndWeek(ctx context.Context, userID uuid.UUID, weekID string) (*domain.WeeklySleepIntervention, error) {
+	return r.s.FindSleepInterventionByUserAndWeek(ctx, userID, weekID)
+}
+func (r *SleepInterventionRepo) Update(ctx context.Context, i *domain.WeeklySleepIntervention) error {
+	return r.s.UpdateSleepIntervention(ctx, i)
+}

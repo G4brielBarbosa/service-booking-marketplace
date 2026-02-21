@@ -915,3 +915,154 @@ func (s *Store) CountJavaLearningLogByUserLabelSince(ctx context.Context, userID
 	err := row.Scan(&count)
 	return count, err
 }
+
+// --- SleepDiaryRepository (PLAN-006) ---
+
+func (s *Store) SaveSleepDiary(ctx context.Context, entry *domain.SleepDiaryEntry) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO sleep_diary_entries (entry_id, user_id, task_id, local_date, slept_at, woke_at,
+		     quality_0_10, morning_energy_0_10, computed_duration_min, awakenings_note, status, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		 ON CONFLICT (entry_id) DO UPDATE SET
+		     slept_at = EXCLUDED.slept_at, woke_at = EXCLUDED.woke_at,
+		     quality_0_10 = EXCLUDED.quality_0_10, morning_energy_0_10 = EXCLUDED.morning_energy_0_10,
+		     computed_duration_min = EXCLUDED.computed_duration_min, status = EXCLUDED.status`,
+		entry.EntryID, entry.UserID, entry.TaskID, entry.LocalDate,
+		entry.SleptAt, entry.WokeAt, entry.Quality0_10, entry.MorningEnergy0_10,
+		entry.ComputedDurationMin, entry.AwakeningsNote, entry.Status, entry.CreatedAt)
+	return err
+}
+
+func (s *Store) FindSleepDiaryByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.SleepDiaryEntry, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT entry_id, user_id, task_id, local_date, slept_at, woke_at,
+		        quality_0_10, morning_energy_0_10, computed_duration_min, awakenings_note, status, created_at
+		 FROM sleep_diary_entries WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var e domain.SleepDiaryEntry
+	err := row.Scan(&e.EntryID, &e.UserID, &e.TaskID, &e.LocalDate,
+		&e.SleptAt, &e.WokeAt, &e.Quality0_10, &e.MorningEnergy0_10,
+		&e.ComputedDurationMin, &e.AwakeningsNote, &e.Status, &e.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
+func (s *Store) FindSleepDiaryByUserAndDateRange(ctx context.Context, userID uuid.UUID, startDate, endDate string) ([]domain.SleepDiaryEntry, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT entry_id, user_id, task_id, local_date, slept_at, woke_at,
+		        quality_0_10, morning_energy_0_10, computed_duration_min, awakenings_note, status, created_at
+		 FROM sleep_diary_entries WHERE user_id = $1 AND local_date >= $2 AND local_date <= $3
+		 ORDER BY created_at`, userID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []domain.SleepDiaryEntry
+	for rows.Next() {
+		var e domain.SleepDiaryEntry
+		if err := rows.Scan(&e.EntryID, &e.UserID, &e.TaskID, &e.LocalDate,
+			&e.SleptAt, &e.WokeAt, &e.Quality0_10, &e.MorningEnergy0_10,
+			&e.ComputedDurationMin, &e.AwakeningsNote, &e.Status, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, e)
+	}
+	return results, nil
+}
+
+// --- SleepRoutineRepository ---
+
+func (s *Store) SaveSleepRoutine(ctx context.Context, record *domain.SleepRoutineRecord) error {
+	stepsJSON, _ := json.Marshal(record.StepsDone)
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO sleep_routine_records (record_id, user_id, task_id, local_date, version, steps_done, result, note_short, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (record_id) DO UPDATE SET
+		     steps_done = EXCLUDED.steps_done, result = EXCLUDED.result, note_short = EXCLUDED.note_short`,
+		record.RecordID, record.UserID, record.TaskID, record.LocalDate,
+		record.Version, stepsJSON, record.Result, record.NoteShort, record.CreatedAt)
+	return err
+}
+
+func (s *Store) FindSleepRoutineByTaskID(ctx context.Context, taskID uuid.UUID) (*domain.SleepRoutineRecord, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT record_id, user_id, task_id, local_date, version, steps_done, result, note_short, created_at
+		 FROM sleep_routine_records WHERE task_id = $1 LIMIT 1`, taskID)
+
+	var r domain.SleepRoutineRecord
+	var stepsJSON []byte
+	err := row.Scan(&r.RecordID, &r.UserID, &r.TaskID, &r.LocalDate,
+		&r.Version, &stepsJSON, &r.Result, &r.NoteShort, &r.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(stepsJSON, &r.StepsDone)
+	return &r, nil
+}
+
+func (s *Store) FindSleepRoutineByUserAndDate(ctx context.Context, userID uuid.UUID, localDate string) (*domain.SleepRoutineRecord, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT record_id, user_id, task_id, local_date, version, steps_done, result, note_short, created_at
+		 FROM sleep_routine_records WHERE user_id = $1 AND local_date = $2 LIMIT 1`, userID, localDate)
+
+	var r domain.SleepRoutineRecord
+	var stepsJSON []byte
+	err := row.Scan(&r.RecordID, &r.UserID, &r.TaskID, &r.LocalDate,
+		&r.Version, &stepsJSON, &r.Result, &r.NoteShort, &r.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(stepsJSON, &r.StepsDone)
+	return &r, nil
+}
+
+// --- SleepInterventionRepository ---
+
+func (s *Store) SaveSleepIntervention(ctx context.Context, i *domain.WeeklySleepIntervention) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO weekly_sleep_interventions (intervention_id, user_id, week_id, description, why_short,
+		     adherence_rule, status, adherence_count_done, closing_outcome, closed_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		i.InterventionID, i.UserID, i.WeekID, i.Description, i.WhyShort,
+		i.AdherenceRule, i.Status, i.AdherenceCountDone, i.ClosingOutcome, i.ClosedAt, i.CreatedAt)
+	return err
+}
+
+func (s *Store) FindSleepInterventionByUserAndWeek(ctx context.Context, userID uuid.UUID, weekID string) (*domain.WeeklySleepIntervention, error) {
+	row := s.pool.QueryRow(ctx,
+		`SELECT intervention_id, user_id, week_id, description, why_short, adherence_rule,
+		        status, adherence_count_done, closing_outcome, closed_at, created_at
+		 FROM weekly_sleep_interventions WHERE user_id = $1 AND week_id = $2 LIMIT 1`, userID, weekID)
+
+	var i domain.WeeklySleepIntervention
+	err := row.Scan(&i.InterventionID, &i.UserID, &i.WeekID, &i.Description, &i.WhyShort,
+		&i.AdherenceRule, &i.Status, &i.AdherenceCountDone, &i.ClosingOutcome, &i.ClosedAt, &i.CreatedAt)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &i, nil
+}
+
+func (s *Store) UpdateSleepIntervention(ctx context.Context, i *domain.WeeklySleepIntervention) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE weekly_sleep_interventions
+		 SET status = $2, adherence_count_done = $3, closing_outcome = $4, closed_at = $5
+		 WHERE intervention_id = $1`,
+		i.InterventionID, i.Status, i.AdherenceCountDone, i.ClosingOutcome, i.ClosedAt)
+	return err
+}
